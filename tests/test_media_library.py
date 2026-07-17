@@ -1,4 +1,5 @@
 import unittest
+import shutil
 from pathlib import Path
 
 from focus_agent.media_library import _category, _media_url, build_media_library
@@ -22,6 +23,21 @@ class MediaLibraryTests(unittest.TestCase):
         self.assertGreaterEqual(len(library["categories"]), 4)
         self.assertEqual(sum(category["count"] for category in library["categories"]), library["playable_count"])
         self.assertTrue(all(not track["url"].casefold().endswith(".ncm") for track in library["tracks"]))
+
+    def test_empty_install_still_has_four_synthesized_soundscapes(self):
+        root = Path(__file__).resolve().parents[1] / ".runtime" / "media-empty-test"
+        project = root / "project"
+        data = root / "data"
+        shutil.rmtree(root, ignore_errors=True)
+        project.mkdir(parents=True)
+        try:
+            library = build_media_library(project, data)
+            self.assertEqual(library["synth_count"], 4)
+            self.assertEqual(library["file_count"], 0)
+            self.assertEqual(library["playable_count"], 4)
+            self.assertTrue(all(track["source"] == "synth" for track in library["tracks"]))
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
 
 
 if __name__ == "__main__":

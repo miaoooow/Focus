@@ -1,6 +1,6 @@
 param(
-    [string]$Version = '3.2.0',
-    [bool]$IncludeLocalMusic = $true,
+    [string]$Version = '3.3.0',
+    [bool]$IncludeLocalMusic = $false,
     [switch]$SkipWindowsInstaller
 )
 
@@ -47,6 +47,12 @@ foreach ($name in $WebFiles) {
     Copy-Item -LiteralPath (Join-Path $ProjectRoot "web_standalone\$name") `
         -Destination (Join-Path $WebStage $name)
 }
+$WebMedia = Join-Path $WebStage 'media'
+New-Item -ItemType Directory -Path $WebMedia -Force | Out-Null
+Get-ChildItem -LiteralPath (Join-Path $ProjectRoot 'pictures') -Filter '*.png' -File |
+    ForEach-Object {
+        Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $WebMedia $_.Name)
+    }
 
 foreach ($archive in @($BrowserZip,$WebZip)) {
     if (Test-Path -LiteralPath $archive) {

@@ -10,6 +10,12 @@ let reactionTimer = 0;
 let soundLibrary = { tracks: [], categories: [] };
 let currentSoundIndex = -1;
 let activeSoundCategory = "all";
+let synthAudioContext = null;
+let synthNodes = [];
+let synthPlaying = false;
+let synthStartedAt = 0;
+let synthElapsedSeconds = 0;
+let synthGain = null;
 
 const goalInput = $("#goal-input");
 const planButton = $("#plan-button");
@@ -527,7 +533,7 @@ function renderBrowserBridge(bridge) {
   const card = $("#browser-bridge-card");
   const connected = Boolean(bridge.connected);
   card.dataset.connected = connected ? "true" : "false";
-  card.dataset.extensionPath = bridge.extension_path || "D:\\Agent\\focus-supervisor-agent-ai\\browser_extension";
+  card.dataset.extensionPath = bridge.extension_path || "browser_extension";
   $("#browser-bridge-title").textContent = connected ? "具体网址识别已连接" : "具体网址识别未启用";
   $("#browser-bridge-copy").textContent = connected
     ? `${bridge.browser || "浏览器"} 正在识别 ${bridge.current_domain || "当前域名"}，域名只留在内存里。`
@@ -549,8 +555,68 @@ function soundSceneFor(categoryId) {
   return ({ rain: "scared", water: "relax", ocean: "relax", birds: "confused", sunny: "focus", ambient: "relax" })[categoryId] || "relax";
 }
 
+function currentSoundTrack() {
+  return soundLibrary.tracks[currentSoundIndex] || null;
+}
+
+function isSyntheticTrack(track = currentSoundTrack()) {
+  return track?.source === "synth";
+}
+
+function createNoiseBuffer(context) {
+  const length = context.sampleRate * 4;
+  const buffer = context.createBuffer(1, length, context.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let index = 0; index < length; index += 1) data[index] = Math.random() * 2 - 1;
+  return buffer;
+}
+
+function stopSyntheticSound({ reset = false } = {}) {
+  if (synthPlaying) {
+    synthElapsedSeconds += (performance.now() - synthStartedAt) / 1000;
+  }
+  synthNodes.forEach((node) => {
+    try { node.stop?.(); } catch {}
+    try { node.disconnect?.(); } catch {}
+  });
+  synthNodes = [];
+  synthGain = null;
+  synthPlaying = false;
+  if (reset) synthElapsedSeconds = 0;
+}
+
+async function playSyntheticSound(track) {
+  stopSyntheticSound();
+  const AudioEngine = window.AudioContext || window.webkitAudioContext;
+  if (!AudioEngine) throw new Error("当前系统不支持合成环境声");
+  synthAudioContext ||= new AudioEngine();
+  await synthAudioContext.resume();
+  const source = synthAudioContext.createBufferSource();
+  source.buffer = createNoiseBuffer(synthAudioContext);
+  source.loop = true;
+  const filter = synthAudioContext.createBiquadFilter();
+  const gain = synthAudioContext.createGain();
+  const settings = {
+    rain: { kind: "highpass", frequency: 900, gain: 0.29 },
+    water: { kind: "bandpass", frequency: 1450, gain: 0.24 },
+    ocean: { kind: "lowpass", frequency: 540, gain: 0.37 },
+    birds: { kind: "bandpass", frequency: 2100, gain: 0.16 },
+  }[track.category] || { kind: "lowpass", frequency: 480, gain: 0.32 };
+  filter.type = settings.kind;
+  filter.frequency.value = settings.frequency;
+  gain.gain.value = settings.gain * Number($("#sound-volume").value || 38) / 100;
+  source.connect(filter).connect(gain).connect(synthAudioContext.destination);
+  source.start();
+  synthNodes = [source, filter, gain];
+  synthGain = gain;
+  synthPlaying = true;
+  synthStartedAt = performance.now();
+}
+
 function syncSoundPlayingState() {
-  const playing = !ambientAudio.paused && !ambientAudio.ended && Boolean(ambientAudio.src);
+  const playing = isSyntheticTrack()
+    ? synthPlaying
+    : !ambientAudio.paused && !ambientAudio.ended && Boolean(ambientAudio.src);
   $("#sound-player").dataset.playing = playing ? "true" : "false";
   $(".sound-visual").dataset.playing = playing ? "true" : "false";
   $("#sound-quick-toggle").dataset.playing = playing ? "true" : "false";
@@ -633,10 +699,21 @@ async function selectSoundTrack(trackId, playNow = false) {
   if (index < 0) return;
   currentSoundIndex = index;
   const track = soundLibrary.tracks[index];
-  if (ambientAudio.dataset.trackId !== track.id) {
+  ambientAudio.pause();
+  stopSyntheticSound({ reset: true });
+  if (isSyntheticTrack(track)) {
+    ambientAudio.removeAttribute("src");
+    ambientAudio.dataset.trackId = track.id;
+    ambientAudio.load();
+    $("#sound-current-time").textContent = "00:00";
+    $("#sound-duration").textContent = "∞";
+    $("#sound-progress").value = "0";
+    $("#sound-progress").disabled = true;
+  } else if (ambientAudio.dataset.trackId !== track.id) {
     ambientAudio.dataset.trackId = track.id;
     ambientAudio.src = track.url;
     ambientAudio.load();
+    $("#sound-progress").disabled = false;
   }
   localStorage.setItem("focus-sound-track", track.id);
   $("#player-track-title").textContent = track.title;
@@ -646,9 +723,11 @@ async function selectSoundTrack(trackId, playNow = false) {
   renderSoundTracks();
   if (playNow) {
     try {
-      await ambientAudio.play();
+      if (isSyntheticTrack(track)) await playSyntheticSound(track);
+      else await ambientAudio.play();
+      syncSoundPlayingState();
     } catch {
-      showToast("浏览器暂时阻止播放，请再点一次播放键", true);
+      showToast("系统暂时阻止播放，请再点一次播放键", true);
     }
   }
 }
@@ -659,9 +738,17 @@ async function toggleSound() {
     showToast("先在声音花园选一种环境");
     return;
   }
-  if (ambientAudio.paused) {
+  const track = currentSoundTrack();
+  if (isSyntheticTrack(track)) {
+    if (synthPlaying) stopSyntheticSound();
+    else {
+      try { await playSyntheticSound(track); }
+      catch { showToast("系统暂时阻止播放，请在声音花园中点击曲目", true); }
+    }
+    syncSoundPlayingState();
+  } else if (ambientAudio.paused) {
     try { await ambientAudio.play(); }
-    catch { showToast("浏览器暂时阻止播放，请在声音花园中点击曲目", true); }
+    catch { showToast("系统暂时阻止播放，请在声音花园中点击曲目", true); }
   } else {
     ambientAudio.pause();
   }
@@ -961,6 +1048,11 @@ ambientAudio.volume = savedVolume;
 $("#sound-volume").value = String(Math.round(savedVolume * 100));
 $("#sound-volume").addEventListener("input", (event) => {
   ambientAudio.volume = Number(event.target.value) / 100;
+  if (synthGain) {
+    const track = currentSoundTrack();
+    const maxGain = ({ rain: .29, water: .24, ocean: .37, birds: .16 })[track?.category] || .32;
+    synthGain.gain.value = maxGain * Number(event.target.value) / 100;
+  }
   localStorage.setItem("focus-sound-volume", String(ambientAudio.volume));
 });
 
@@ -983,6 +1075,7 @@ ambientAudio.addEventListener("timeupdate", () => {
 ambientAudio.addEventListener("play", syncSoundPlayingState);
 ambientAudio.addEventListener("pause", syncSoundPlayingState);
 ambientAudio.addEventListener("error", () => {
+  if (isSyntheticTrack()) return;
   syncSoundPlayingState();
   showToast("这段声音没有成功加载，请换一首或检查文件", true);
 });
@@ -997,3 +1090,8 @@ if (localStorage.getItem("focus-reduce-motion") === "1") document.body.classList
 refreshState();
 loadSoundLibrary();
 setInterval(refreshState, 800);
+setInterval(() => {
+  if (!synthPlaying) return;
+  const elapsed = synthElapsedSeconds + (performance.now() - synthStartedAt) / 1000;
+  $("#sound-current-time").textContent = formatAudioTime(elapsed);
+}, 1000);

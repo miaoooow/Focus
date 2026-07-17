@@ -1,5 +1,5 @@
 #ifndef MyAppVersion
-  #define MyAppVersion "3.2.0"
+  #define MyAppVersion "3.3.0"
 #endif
 
 #define MyAppName "Focus Buddy"
@@ -14,7 +14,7 @@ VersionInfoVersion={#MyAppVersion}
 DefaultDirName={localappdata}\Programs\FocusBuddy
 DefaultGroupName={#MyAppName}
 DisableWelcomePage=yes
-DisableDirPage=yes
+DisableDirPage=no
 DisableProgramGroupPage=yes
 DisableReadyPage=yes
 DisableFinishedPage=yes

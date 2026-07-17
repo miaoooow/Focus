@@ -163,6 +163,7 @@ main { width: min(1240px, calc(100% - 48px)); margin: 0 auto; }
 }
 
 .css-cat {
+  display: none;
   position: absolute;
   left: 50%;
   bottom: 76px;
@@ -171,6 +172,22 @@ main { width: min(1240px, calc(100% - 48px)); margin: 0 auto; }
   transform: translateX(-50%);
   animation: cat-breathe 3.8s ease-in-out infinite;
 }
+.hero-pet-image {
+  position: absolute;
+  z-index: 2;
+  bottom: 58px;
+  left: 50%;
+  width: min(86%, 410px);
+  height: 330px;
+  object-fit: contain;
+  border-radius: 34px;
+  filter: drop-shadow(0 24px 34px rgba(0, 0, 0, .33));
+  transform: translateX(-50%);
+  transform-origin: 50% 82%;
+  animation: pet-breathe 4s ease-in-out infinite;
+}
+.hero-pet-image.annoyed { animation: pet-shake .7s cubic-bezier(.36,.07,.19,.97) both; }
+.hero-pet-image.happy { animation: pet-celebrate 1.25s cubic-bezier(.34,1.56,.64,1) both; }
 .css-cat .body {
   position: absolute;
   left: 43px;
@@ -385,6 +402,58 @@ textarea:focus, select:focus { border-color: rgba(215,242,143,.65); box-shadow: 
 .growth-line div { width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #79aa79, var(--lime)); transition: width .5s ease; }
 .growth-card p { display: flex; justify-content: space-between; gap: 20px; margin: 0; color: #8ca393; font-size: 11px; }
 .growth-card p b { color: #d7e3d7; }
+.pet-customizer {
+  display: grid;
+  grid-template-columns: 1fr 1.35fr auto auto;
+  gap: 10px;
+  align-items: end;
+  margin-top: 24px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+.pet-customizer label > span {
+  display: block;
+  margin-bottom: 7px;
+  color: #8ca393;
+  font-size: 10px;
+  font-weight: 700;
+}
+.pet-customizer input {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid rgba(214,242,148,.16);
+  border-radius: 12px;
+  outline: none;
+  background: rgba(2,16,11,.65);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+}
+.pet-customizer input:focus { border-color: rgba(215,242,143,.65); }
+.pet-upload input { padding: 8px; }
+.pet-upload input::file-selector-button {
+  margin-right: 8px;
+  padding: 6px 9px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(215,242,143,.12);
+  color: #cce3be;
+  cursor: pointer;
+}
+.pet-customizer button {
+  min-height: 42px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(215,242,143,.07);
+  color: #c9dbce;
+  font: inherit;
+  font-size: 11px;
+}
+.pet-customizer button:hover { border-color: rgba(215,242,143,.45); }
+.pet-customizer #save-pet { background: var(--lime); color: #173629; font-weight: 800; }
+.growth-card .pet-privacy { display: block; margin-top: 11px; color: #6f8979; font-size: 10px; }
 
 footer {
   display: flex;
@@ -404,6 +473,17 @@ footer {
 .css-cat.happy .face::after { content: "♡"; position: absolute; top: -28px; right: 14px; color: #ef9b84; font-size: 30px; animation: heart 1.2s ease forwards; }
 @keyframes shake { 50% { transform: translateX(5px) rotate(2deg); } }
 @keyframes heart { to { transform: translateY(-24px) rotate(10deg); opacity: 0; } }
+@keyframes pet-breathe {
+  50% { transform: translateX(-50%) translateY(-6px) scale(1.018); }
+}
+@keyframes pet-shake {
+  20%, 60% { transform: translateX(calc(-50% - 9px)) rotate(-2deg); }
+  40%, 80% { transform: translateX(calc(-50% + 9px)) rotate(2deg); }
+}
+@keyframes pet-celebrate {
+  40% { transform: translateX(-50%) translateY(-18px) scale(1.04) rotate(-2deg); }
+  72% { transform: translateX(-50%) translateY(-4px) scale(.99) rotate(2deg); }
+}
 
 @media (max-width: 900px) {
   .hero, .workspace, .garden, .growth { grid-template-columns: 1fr; }
@@ -411,6 +491,7 @@ footer {
   .cat-vignette { min-height: 390px; }
   .side-panel { border-right: 0; border-bottom: 1px solid var(--line); }
   .garden, .growth { gap: 30px; padding-top: 90px; }
+  .pet-customizer { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 600px) {
@@ -427,6 +508,8 @@ footer {
   .session-stats { gap: 5px; }
   .session-stats div { padding: 10px 5px; }
   .growth-card p { flex-direction: column; gap: 5px; }
+  .pet-customizer { grid-template-columns: 1fr; }
+  .hero-pet-image { width: 94%; height: 275px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

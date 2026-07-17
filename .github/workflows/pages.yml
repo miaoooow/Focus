@@ -35,10 +35,17 @@ jobs:
       - name: Verify entry file
         shell: bash
         run: test -f web_standalone/index.html
+      - name: Stage web edition
+        shell: bash
+        run: |
+          mkdir -p site/media
+          cp web_standalone/index.html web_standalone/styles.css web_standalone/app.js site/
+          cp web_standalone/manifest.webmanifest web_standalone/sw.js site/
+          cp pictures/*.png site/media/
       - name: Upload web edition
         uses: actions/upload-pages-artifact@v4
         with:
-          path: web_standalone
+          path: site
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4

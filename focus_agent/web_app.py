@@ -7,6 +7,8 @@ import mimetypes
 import os
 import queue
 import socket
+import subprocess
+import sys
 import threading
 import time
 import tkinter as tk
@@ -23,12 +25,46 @@ from .paths import resource_root, user_data_root
 
 PROJECT_ROOT = resource_root()
 WEB_ROOT = PROJECT_ROOT / "web"
+DESKTOP_WINDOW_ARG = "--focus-buddy-desktop-window"
 
 
 def _startup_trace(message: str) -> None:
     """Expose opt-in milestones for diagnosing packaged startup failures."""
     if os.environ.get("FOCUS_BUDDY_STARTUP_TRACE", "").strip() == "1":
         print(f"[FocusBuddyAI] {message}", flush=True)
+
+
+def _desktop_window_command(url: str) -> list[str]:
+    if getattr(sys, "frozen", False):
+        return [sys.executable, DESKTOP_WINDOW_ARG, url]
+    return [sys.executable, str(PROJECT_ROOT / "app.py"), DESKTOP_WINDOW_ARG, url]
+
+
+def _run_desktop_window(url: str) -> None:
+    """Host the local control surface in a native WebView2 window."""
+    try:
+        import webview
+
+        storage = user_data_root() / "WebView2"
+        storage.mkdir(parents=True, exist_ok=True)
+        webview.create_window(
+            "Focus Buddy",
+            url,
+            width=1440,
+            height=900,
+            min_size=(1040, 700),
+            background_color="#0b2119",
+            text_select=True,
+        )
+        webview.start(
+            gui="edgechromium",
+            private_mode=False,
+            storage_path=str(storage),
+        )
+    except Exception as exc:
+        _startup_trace(f"desktop window unavailable: {exc}")
+        webbrowser.open(url, new=1)
+        raise SystemExit(42) from exc
 
 
 class FocusHTTPServer(ThreadingHTTPServer):
@@ -85,7 +121,7 @@ class FocusRequestHandler(BaseHTTPRequestHandler):
             self._json({"ok": True, "data": self.server.controller.status()})
             return
         if path == "/api/health":
-            self._json({"ok": True, "data": {"service": "focus-buddy-ai", "version": 7}})
+            self._json({"ok": True, "data": {"service": "focus-buddy-ai", "version": 8}})
             return
         if path == "/api/ui/status":
             self._json(
@@ -314,6 +350,10 @@ def _find_server(
 
 
 def main() -> None:
+    if len(sys.argv) >= 3 and sys.argv[1] == DESKTOP_WINDOW_ARG:
+        _run_desktop_window(sys.argv[2])
+        return
+
     _startup_trace("creating Tk root")
     root = tk.Tk()
     root.withdraw()
@@ -335,19 +375,31 @@ def main() -> None:
     server_thread.start()
     _startup_trace(f"server ready on {server.server_port}")
     url = f"http://127.0.0.1:{server.server_port}/"
-    # Some Windows browser handlers block while launching. Keep that work away
-    # from Tk's main thread so native cat alerts can be consumed immediately.
+    desktop_process: subprocess.Popen | None = None
     if os.environ.get("FOCUS_BUDDY_NO_BROWSER", "").strip() != "1":
-        threading.Thread(
-            target=webbrowser.open,
-            args=(url,),
-            kwargs={"new": 1},
-            name="focus-open-browser",
-            daemon=True,
-        ).start()
+        try:
+            desktop_process = subprocess.Popen(
+                _desktop_window_command(url),
+                close_fds=True,
+            )
+        except OSError as exc:
+            _startup_trace(f"desktop process unavailable: {exc}")
+            threading.Thread(
+                target=webbrowser.open,
+                args=(url,),
+                kwargs={"new": 1},
+                name="focus-open-browser",
+                daemon=True,
+            ).start()
 
     def pump() -> None:
+        nonlocal desktop_process
         server.ui_heartbeat = time.monotonic()
+        if desktop_process is not None and desktop_process.poll() is not None:
+            exit_code = desktop_process.returncode
+            desktop_process = None
+            if exit_code != 42:
+                shutdown_event.set()
         try:
             suggestion = suggestion_queue.get_nowait()
             cat_alert.show_suggestion(

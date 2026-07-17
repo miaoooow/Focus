@@ -1,5 +1,5 @@
 param(
-    [string]$Version = '3.2.0',
+    [string]$Version = '3.3.0',
     [switch]$IncludeLocalMusic,
     [switch]$PortableZip,
     [switch]$SkipInstaller
@@ -26,7 +26,7 @@ $env:PYTHONNOUSERSITE = '1'
 $BundleMusic = if ($PSBoundParameters.ContainsKey('IncludeLocalMusic')) {
     [bool]$IncludeLocalMusic
 } else {
-    $true
+    $false
 }
 $env:FOCUS_BUDDY_BUNDLE_MUSIC = if ($BundleMusic) { '1' } else { '0' }
 

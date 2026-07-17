@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -16,8 +17,12 @@ class OllamaStatus:
 
 
 class OllamaClient:
-    def __init__(self, base_url: str = "http://127.0.0.1:11434", timeout: int = 180):
-        self.base_url = base_url.rstrip("/")
+    def __init__(self, base_url: str | None = None, timeout: int = 180):
+        configured_url = base_url or os.environ.get(
+            "FOCUS_BUDDY_OLLAMA_URL",
+            "http://127.0.0.1:11434",
+        )
+        self.base_url = configured_url.rstrip("/")
         self.timeout = timeout
 
     def status(self) -> OllamaStatus:

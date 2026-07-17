@@ -20,6 +20,45 @@ CATEGORIES = (
     {"id": "ambient", "label": "漫游", "icon": "∞", "description": "不打断思路的自然氛围"},
 )
 
+SYNTHETIC_TRACKS = (
+    {
+        "id": "synth-rain",
+        "title": "窗边雨幕",
+        "artist": "Focus Buddy 合成声景",
+        "category": "rain",
+        "url": "",
+        "source": "synth",
+        "size_mb": 0,
+    },
+    {
+        "id": "synth-stream",
+        "title": "缓慢溪流",
+        "artist": "Focus Buddy 合成声景",
+        "category": "water",
+        "url": "",
+        "source": "synth",
+        "size_mb": 0,
+    },
+    {
+        "id": "synth-ocean",
+        "title": "深夜海岸",
+        "artist": "Focus Buddy 合成声景",
+        "category": "ocean",
+        "url": "",
+        "source": "synth",
+        "size_mb": 0,
+    },
+    {
+        "id": "synth-forest",
+        "title": "林间微风",
+        "artist": "Focus Buddy 合成声景",
+        "category": "birds",
+        "url": "",
+        "source": "synth",
+        "size_mb": 0,
+    },
+)
+
 
 def _category(filename: str) -> str:
     name = filename.casefold()
@@ -47,7 +86,7 @@ def build_media_library(project_root: Path | None = None, data_root: Path | None
     user_music_root = writable_root / "Musics"
     user_music_root.mkdir(parents=True, exist_ok=True)
     music_roots = (("user", user_music_root), ("bundled", root / "Musics"))
-    tracks = []
+    tracks = [dict(item) for item in SYNTHETIC_TRACKS]
     unavailable = 0
     seen_files: set[tuple[str, str]] = set()
     for source, music_root in music_roots:
@@ -90,5 +129,7 @@ def build_media_library(project_root: Path | None = None, data_root: Path | None
         "tracks": tracks,
         "categories": categories,
         "playable_count": len(tracks),
+        "synth_count": len(SYNTHETIC_TRACKS),
+        "file_count": len(tracks) - len(SYNTHETIC_TRACKS),
         "unavailable_count": unavailable,
     }

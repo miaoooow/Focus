@@ -27,6 +27,9 @@ if (Test-Path -LiteralPath $DataRoot) {
 try {
     $env:FOCUS_BUDDY_NO_BROWSER = '1'
     $env:FOCUS_AGENT_DATA_DIR = $DataRoot
+    if ($RequireFallback) {
+        $env:FOCUS_BUDDY_OLLAMA_URL = 'http://127.0.0.1:65534'
+    }
     $Process = Start-Process -FilePath $Executable -WindowStyle Hidden -PassThru
 
     $BaseUrl = $null
@@ -43,7 +46,7 @@ try {
                 $health = Invoke-RestMethod -Uri "$candidate/api/health" -TimeoutSec 1
                 if (
                     $health.ok -and
-                    $health.data.version -eq 7 -and
+                    $health.data.version -eq 8 -and
                     $health.data.service -eq 'focus-buddy-ai'
                 ) {
                     $BaseUrl = $candidate
@@ -96,8 +99,8 @@ try {
     }
 
     $media = Invoke-RestMethod -Uri "$BaseUrl/api/media/library" -TimeoutSec 5
-    if ($media.data.playable_count -lt 15) {
-        throw 'Packaged sound library is incomplete'
+    if ($media.data.synth_count -lt 4 -or $media.data.playable_count -lt 4) {
+        throw 'Packaged synthesized sound library is incomplete'
     }
 
     $photoBytes = [IO.File]::ReadAllBytes((Join-Path $ProjectRoot 'pictures\focus.png'))
@@ -141,7 +144,8 @@ try {
         AIFallbackReason = $aiPlan.data.fallback_reason
         GoalTargets = $values -join ', '
         Scenarios = $plan.data.scenes.Count
-        PlayableAudio = $media.data.playable_count
+        SynthesizedAudio = $media.data.synth_count
+        LocalAudioFiles = $media.data.file_count
         CustomGrowthAssets = $catalogItem.stage_assets.Count
         CustomPetDeleteFallback = $deleted.data.pet.skin
     } | Format-List
@@ -155,6 +159,7 @@ try {
     }
     Remove-Item Env:FOCUS_BUDDY_NO_BROWSER -ErrorAction SilentlyContinue
     Remove-Item Env:FOCUS_AGENT_DATA_DIR -ErrorAction SilentlyContinue
+    Remove-Item Env:FOCUS_BUDDY_OLLAMA_URL -ErrorAction SilentlyContinue
     if (Test-Path -LiteralPath $DataRoot) {
         Remove-Item -LiteralPath $DataRoot -Recurse -Force
     }

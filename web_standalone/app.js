@@ -16,6 +16,8 @@ const defaults = {
   coins: 0,
   completed: 0,
   session: null,
+  petName: "Luna",
+  petImage: null,
 };
 
 let state = loadState();
@@ -23,6 +25,19 @@ let timerHandle = null;
 let hiddenAt = null;
 let audioContext = null;
 let soundNodes = [];
+let pendingPetImage = state.petImage;
+
+function petName() {
+  return (state.petName || "Luna").trim() || "Luna";
+}
+
+function defaultPetImage(kind = "") {
+  return {
+    annoyed: "media/confused.png",
+    happy: "media/happy.png",
+    focus: "media/focus.png",
+  }[kind] || "media/relax.png";
+}
 
 function loadState() {
   try {
@@ -89,9 +104,16 @@ function rewardPreview() {
 
 function catReact(kind, title, note) {
   const cat = $("#hero-cat");
+  const image = $("#hero-pet-image");
   cat.classList.remove("annoyed", "happy");
+  image.classList.remove("annoyed", "happy");
   void cat.offsetWidth;
-  if (kind) cat.classList.add(kind);
+  void image.offsetWidth;
+  if (kind) {
+    cat.classList.add(kind);
+    image.classList.add(kind);
+  }
+  image.src = state.petImage || defaultPetImage(kind);
   $("#cat-note-title").textContent = title;
   $("#cat-note").textContent = note;
 }
@@ -99,7 +121,7 @@ function catReact(kind, title, note) {
 function startSession() {
   const goal = $("#goal").value.trim();
   if (!goal) {
-    $("#form-message").textContent = "Luna 还不知道该盯哪件事，请先写下目标。";
+    $("#form-message").textContent = `${petName()} 还不知道该盯哪件事，请先写下目标。`;
     $("#goal").focus();
     return;
   }
@@ -117,7 +139,7 @@ function startSession() {
   };
   $("#form-message").textContent = "";
   saveState();
-  catReact("", "Luna 开工了", "别追求完美，先把这一轮做完。");
+  catReact("focus", `${petName()} 开工了`, "别追求完美，先把这一轮做完。");
   beginTimer();
   render();
 }
@@ -163,7 +185,7 @@ function completeSession() {
   clearInterval(timerHandle);
   timerHandle = null;
   saveState();
-  catReact("happy", "Luna 有点骄傲", "完成比完美更会养大一只猫。");
+  catReact("happy", `${petName()} 有点骄傲`, "完成比完美更会养大一只猫。");
   render();
 }
 
@@ -182,7 +204,7 @@ function registerDrift(secondsAway) {
   const funny = state.session.tone === "funny";
   catReact(
     "annoyed",
-    funny ? "散步路线挺熟" : "Luna 在等你",
+    funny ? "散步路线挺熟" : `${petName()} 在等你`,
     funny ? `离开 ${secondsAway} 秒，页面没丢，专注先丢了一点。` : "回来就好，把下一小步做完。"
   );
   $("#event-line").textContent = `刚才离开页面 ${secondsAway} 秒，本轮清醒值已调整。`;
@@ -202,7 +224,7 @@ function renderSession() {
     session?.status === "running" ? "专注中" : session?.status === "paused" ? "已暂停" : session?.status === "finished" ? "已完成" : "待机";
   $("#session-status").classList.toggle("active", session?.status === "running");
   $("#timer-caption").textContent =
-    session?.status === "running" ? "Luna 正在守着这一轮" : session?.status === "paused" ? "时间已暂停" : session?.status === "finished" ? "奖励已结算" : "准备好就开始";
+    session?.status === "running" ? `${petName()} 正在守着这一轮` : session?.status === "paused" ? "时间已暂停" : session?.status === "finished" ? "奖励已结算" : "准备好就开始";
   $("#pause").disabled = !session || session.status === "finished";
   $("#finish").disabled = !session || session.status === "finished";
   $("#pause").textContent = session?.status === "paused" ? "继续" : "暂停";
@@ -213,10 +235,10 @@ function renderSession() {
 
 function renderGrowth() {
   const stages = [
-    { at: 0, next: 60, name: "刚到家的幼猫", copy: "Luna 会开始认主。" },
-    { at: 60, next: 180, name: "会认主的小猫", copy: "Luna 会长成少年猫。" },
-    { at: 180, next: 420, name: "有点主意的少年猫", copy: "Luna 会成为稳定搭档。" },
-    { at: 420, next: 900, name: "可靠的专注搭档", copy: "Luna 会解锁守护形态。" },
+    { at: 0, next: 60, name: "刚到家的幼猫", copy: `${petName()} 会开始认主。` },
+    { at: 60, next: 180, name: "会认主的小猫", copy: `${petName()} 会长成少年猫。` },
+    { at: 180, next: 420, name: "有点主意的少年猫", copy: `${petName()} 会成为稳定搭档。` },
+    { at: 420, next: 900, name: "可靠的专注搭档", copy: `${petName()} 会解锁守护形态。` },
     { at: 900, next: null, name: "守护专注的大猫", copy: "你们已经走了很远。" },
   ];
   const index = stages.findLastIndex((stage) => state.totalMinutes >= stage.at);
@@ -232,6 +254,11 @@ function renderGrowth() {
   $("#growth-next").textContent = stage.next
     ? `再专注 ${Math.max(0, stage.next - state.totalMinutes)} 分钟，${stage.copy}`
     : stage.copy;
+  $("#pet-name").value = petName();
+  const image = $("#hero-pet-image");
+  if (!image.classList.contains("annoyed") && !image.classList.contains("happy")) {
+    image.src = state.petImage || defaultPetImage(state.session?.status === "running" ? "focus" : "");
+  }
 }
 
 function render() {
@@ -246,6 +273,73 @@ function stopSound() {
   });
   soundNodes = [];
   document.querySelectorAll(".sound-card").forEach((button) => button.classList.remove("active"));
+}
+
+function compressPetPhoto(file) {
+  return new Promise((resolve, reject) => {
+    if (!file?.type?.startsWith("image/")) {
+      reject(new Error("请选择 PNG、JPG 或 WebP 图片。"));
+      return;
+    }
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      const maxSide = 512;
+      const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(objectUrl);
+      resolve(canvas.toDataURL("image/jpeg", .82));
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("这张图片没能读出来，请换一张试试。"));
+    };
+    image.src = objectUrl;
+  });
+}
+
+async function previewPetPhoto() {
+  const file = $("#pet-photo").files?.[0];
+  if (!file) return;
+  try {
+    pendingPetImage = await compressPetPhoto(file);
+    $("#hero-pet-image").src = pendingPetImage;
+    $("#form-message").textContent = "新伙伴已经试穿完毕，点“保存领养信息”正式入住。";
+  } catch (error) {
+    $("#form-message").textContent = error.message;
+  }
+}
+
+function savePet() {
+  state.petName = $("#pet-name").value.trim().slice(0, 12) || "Luna";
+  state.petImage = pendingPetImage || null;
+  try {
+    saveState();
+  } catch {
+    state.petImage = null;
+    pendingPetImage = null;
+    saveState();
+    $("#form-message").textContent = "图片太大，浏览器房间放不下；请换一张更小的。";
+    render();
+    return;
+  }
+  catReact("happy", `${petName()} 正式入住`, "照片和名字只留在这台设备的当前浏览器。");
+  $("#form-message").textContent = "领养信息已保存。";
+  renderGrowth();
+}
+
+function resetPet() {
+  state.petName = "Luna";
+  state.petImage = null;
+  pendingPetImage = null;
+  $("#pet-photo").value = "";
+  saveState();
+  catReact("happy", "Luna 回来了", "原装小猫重新接管了计时岗位。");
+  $("#form-message").textContent = "已恢复默认宠物。";
+  renderGrowth();
 }
 
 function createNoiseBuffer(context) {
@@ -284,10 +378,21 @@ $("#duration").addEventListener("change", renderSession);
 $("#start").addEventListener("click", startSession);
 $("#pause").addEventListener("click", pauseOrResume);
 $("#finish").addEventListener("click", stopSession);
+$("#pet-photo").addEventListener("change", previewPetPhoto);
+$("#save-pet").addEventListener("click", savePet);
+$("#reset-pet").addEventListener("click", resetPet);
 document.querySelectorAll("[data-sound]").forEach((button) => {
   button.addEventListener("click", () => playSound(button.dataset.sound, button));
 });
 $("#sound-stop").addEventListener("click", stopSound);
+$("#hero-pet-image").addEventListener("load", () => {
+  $("#hero-pet-image").hidden = false;
+  $("#hero-cat").style.display = "none";
+});
+$("#hero-pet-image").addEventListener("error", () => {
+  $("#hero-pet-image").hidden = true;
+  $("#hero-cat").style.display = "block";
+});
 
 document.addEventListener("visibilitychange", () => {
   if (!state.session || state.session.status !== "running") return;

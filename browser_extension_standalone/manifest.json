@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Focus Buddy · 浏览器版",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "description": "用域名白名单、专注计时和小猫提醒守住浏览器里的工作节奏。",
   "permissions": ["storage", "tabs", "alarms", "notifications"],
   "background": {

@@ -5,7 +5,13 @@ import urllib.error
 import urllib.request
 from urllib.parse import quote
 
-from focus_agent.web_app import FocusHTTPServer, FocusRequestHandler, _find_server
+from focus_agent.web_app import (
+    DESKTOP_WINDOW_ARG,
+    FocusHTTPServer,
+    FocusRequestHandler,
+    _desktop_window_command,
+    _find_server,
+)
 
 
 class FakeController:
@@ -52,6 +58,12 @@ class FakeController:
 
 
 class WebAppTests(unittest.TestCase):
+    def test_source_desktop_window_command_reuses_the_project_entrypoint(self):
+        command = _desktop_window_command("http://127.0.0.1:8765/")
+        self.assertEqual(command[-2], DESKTOP_WINDOW_ARG)
+        self.assertEqual(command[-1], "http://127.0.0.1:8765/")
+        self.assertTrue(command[-3].casefold().endswith("app.py"))
+
     def test_server_skips_an_occupied_port(self):
         occupied = FocusHTTPServer(
             ("127.0.0.1", 0), FocusRequestHandler, FakeController(), threading.Event()
@@ -81,7 +93,7 @@ class WebAppTests(unittest.TestCase):
             with urllib.request.urlopen(f"{base}/api/health", timeout=3) as response:
                 payload = json.loads(response.read().decode("utf-8"))
             self.assertTrue(payload["ok"])
-            self.assertEqual(payload["data"]["version"], 7)
+            self.assertEqual(payload["data"]["version"], 8)
             self.assertEqual(payload["data"]["service"], "focus-buddy-ai")
             with urllib.request.urlopen(f"{base}/", timeout=3) as response:
                 html = response.read().decode("utf-8")
@@ -89,8 +101,8 @@ class WebAppTests(unittest.TestCase):
             self.assertIn("Focus Buddy", html)
             self.assertIn("default-src 'self'", csp)
             self.assertIn("media-src 'self'", csp)
-            self.assertIn("/styles.css?v=7", html)
-            self.assertIn("/app.js?v=7", html)
+            self.assertIn("/styles.css?v=8", html)
+            self.assertIn("/app.js?v=8", html)
             self.assertIn("本机 AI 增强", html)
             self.assertIn("选择雨幕、溪流、海岸或鸟鸣，让小猫替你守住这一段节奏。", html)
             self.assertNotIn('class="sound-facts"', html)
@@ -104,11 +116,13 @@ class WebAppTests(unittest.TestCase):
             with urllib.request.urlopen(f"{base}/api/media/library", timeout=3) as response:
                 media = json.loads(response.read().decode("utf-8"))["data"]
             self.assertGreaterEqual(media["playable_count"], 15)
+            self.assertEqual(media["synth_count"], 4)
             self.assertTrue(media["tracks"])
             self.assertTrue(all(not track["url"].casefold().endswith(".ncm") for track in media["tracks"]))
 
+            file_track = next(track for track in media["tracks"] if track["source"] != "synth")
             range_request = urllib.request.Request(
-                f"{base}{media['tracks'][0]['url']}",
+                f"{base}{file_track['url']}",
                 headers={"Range": "bytes=0-31"},
             )
             with urllib.request.urlopen(range_request, timeout=3) as response:

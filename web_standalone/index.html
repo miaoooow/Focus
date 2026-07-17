@@ -42,6 +42,7 @@
         </div>
         <div class="cat-vignette" aria-label="Luna 小猫">
           <div class="moon"></div>
+          <img id="hero-pet-image" class="hero-pet-image" src="media/relax.png" alt="正在陪伴你的专注宠物" />
           <div class="css-cat" id="hero-cat">
             <i class="ear left"></i><i class="ear right"></i>
             <i class="face"><b class="eye left"></b><b class="eye right"></b><b class="nose"></b></i>
@@ -150,6 +151,19 @@
             <div id="growth-fill"></div>
           </div>
           <p><b id="growth-stage">刚到家的幼猫</b><span id="growth-next">再专注 60 分钟，Luna 会开始认主。</span></p>
+          <div class="pet-customizer">
+            <label>
+              <span>宠物名字</span>
+              <input id="pet-name" maxlength="12" value="Luna" />
+            </label>
+            <label class="pet-upload">
+              <span>上传自家宠物照片</span>
+              <input id="pet-photo" type="file" accept="image/png,image/jpeg,image/webp" />
+            </label>
+            <button id="save-pet" type="button">保存领养信息</button>
+            <button id="reset-pet" type="button">恢复 Luna</button>
+          </div>
+          <p class="pet-privacy">照片会压缩后保存在当前浏览器，不会上传服务器。</p>
         </div>
       </section>
     </main>

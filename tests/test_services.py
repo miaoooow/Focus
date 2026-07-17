@@ -1,7 +1,10 @@
 import unittest
 import json
+import os
+from unittest.mock import patch
 
 from focus_agent.contracts import sanitize_roast_response, sanitize_summary_response
+from focus_agent.ollama_client import OllamaClient
 from focus_agent.services import CopyProvider, SessionParserService
 
 
@@ -43,6 +46,11 @@ class CountingClient:
 
 
 class ServiceTests(unittest.TestCase):
+    def test_ollama_endpoint_can_be_overridden_for_offline_validation(self):
+        with patch.dict(os.environ, {"FOCUS_BUDDY_OLLAMA_URL": "http://127.0.0.1:65534"}):
+            client = OllamaClient()
+        self.assertEqual(client.base_url, "http://127.0.0.1:65534")
+
     def test_goal_planner_falls_back_locally_when_ollama_is_offline(self):
         plan = SessionParserService(OfflineClient()).plan_goal(
             "45分钟完成高数作业第三章", use_ai=False
