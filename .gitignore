@@ -10,5 +10,4 @@ Musics/
 *.ncm
 *.lrc
 docs/*
-!docs/迪拉兰-Focus_Agent设计说明书.docx
 scripts/build_agent_design_doc.py

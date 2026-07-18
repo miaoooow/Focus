@@ -189,8 +189,7 @@ Focus/
 ├─ pictures/                      界面图片素材
 ├─ installer/Focus.iss            Windows 安装器
 ├─ scripts/                       测试、文档、音频与发布脚本
-├─ tests/                         自动化回归测试
-└─ docs/迪拉兰-Focus_Agent设计说明书.docx  产品设计与功能图解
+└─ tests/                         自动化回归测试
 ```
 
 `Musics` 原文件、虚拟环境、构建缓存和 Release 二进制不会提交到仓库。
