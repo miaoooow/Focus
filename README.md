@@ -190,10 +190,10 @@ Focus/
 ├─ installer/Focus.iss            Windows 安装器
 ├─ scripts/                       测试、文档、音频与发布脚本
 ├─ tests/                         自动化回归测试
-└─ docs/Focus_宣传视频制作脚本.md  宣传视频分镜与制作清单
+└─ docs/迪拉兰-Focus_Agent设计说明书.docx  产品设计与功能图解
 ```
 
-`Musics` 原文件、虚拟环境、构建缓存、Release 二进制和 DOCX 设计文档不会提交到仓库。
+`Musics` 原文件、虚拟环境、构建缓存和 Release 二进制不会提交到仓库。
 
 ## 从源码运行
 

@@ -10,5 +10,5 @@ Musics/
 *.ncm
 *.lrc
 docs/*
-!docs/Focus_宣传视频制作脚本.md
+!docs/迪拉兰-Focus_Agent设计说明书.docx
 scripts/build_agent_design_doc.py
