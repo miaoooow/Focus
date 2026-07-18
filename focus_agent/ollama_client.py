@@ -19,7 +19,7 @@ class OllamaStatus:
 class OllamaClient:
     def __init__(self, base_url: str | None = None, timeout: int = 180):
         configured_url = base_url or os.environ.get(
-            "FOCUS_BUDDY_OLLAMA_URL",
+            "FOCUS_OLLAMA_URL",
             "http://127.0.0.1:11434",
         )
         self.base_url = configured_url.rstrip("/")

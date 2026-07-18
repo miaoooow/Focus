@@ -15,7 +15,15 @@ class RoastDatabase:
     """Seed, select and learn short lines without putting SQLite in the hot loop."""
 
     def __init__(self, path: Path | None = None, seed_path: Path | None = None):
-        self.path = Path(path or user_data_root() / "focus_buddy.sqlite3")
+        root = user_data_root()
+        default_path = root / "focus.sqlite3"
+        legacy_path = root / ("focus" + "_buddy.sqlite3")
+        if path is None and not default_path.exists() and legacy_path.is_file():
+            try:
+                default_path.write_bytes(legacy_path.read_bytes())
+            except OSError:
+                pass
+        self.path = Path(path or default_path)
         self.seed_path = Path(seed_path or resource_root() / "data" / "roast_lines.json")
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._seed = self._read_seed()

@@ -120,7 +120,7 @@ class MatcherTests(unittest.TestCase):
         self.assertIn("不扣分", status)
         self.assertIsNone(suggestion)
 
-    def test_focus_buddy_local_control_page_is_always_safe_in_whitelist_mode(self):
+    def test_focus_local_control_page_is_always_safe_in_whitelist_mode(self):
         config = config_with(
             {"kind": "domain", "value": "example.com", "match": "domain_suffix"}
         )
@@ -128,7 +128,7 @@ class MatcherTests(unittest.TestCase):
             hwnd=105,
             pid=205,
             process_name="msedge.exe",
-            window_title="Focus Buddy · 本地专注伙伴",
+            window_title="Focus · 本地专注伙伴",
             input_idle_seconds=0.2,
             browser_domain="127.0.0.1",
         )

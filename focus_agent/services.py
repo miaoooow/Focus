@@ -54,11 +54,11 @@ class SessionParserService:
         self.client = client
         self.cloud_settings = cloud_settings
         self.cloud_client = cloud_client
-        self.model = os.environ.get("FOCUS_BUDDY_MODEL", "").strip() or model
+        self.model = os.environ.get("FOCUS_MODEL", "").strip() or model
         try:
             self.ai_timeout_seconds = max(
                 10.0,
-                min(180.0, float(os.environ.get("FOCUS_BUDDY_AI_TIMEOUT", "60"))),
+                min(180.0, float(os.environ.get("FOCUS_AI_TIMEOUT", "60"))),
             )
         except ValueError:
             self.ai_timeout_seconds = 60.0

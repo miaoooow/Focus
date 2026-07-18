@@ -1,5 +1,5 @@
 param(
-    [string]$Version = '3.5.0',
+    [string]$Version = '4.0.0',
     [switch]$IncludeLocalMusic,
     [switch]$PortableZip,
     [switch]$SkipInstaller
@@ -10,7 +10,7 @@ $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $Python = Join-Path $ProjectRoot '.venv\Scripts\python.exe'
 $DistRoot = Join-Path $ProjectRoot 'dist'
 $ReleaseRoot = Join-Path $ProjectRoot 'release'
-$PortableRoot = Join-Path $DistRoot 'FocusBuddyAI'
+$PortableRoot = Join-Path $DistRoot 'Focus'
 $TempRoot = Join-Path $ProjectRoot '.tmp'
 
 if (-not (Test-Path -LiteralPath $Python)) {
@@ -28,14 +28,14 @@ $BundleMusic = if ($PSBoundParameters.ContainsKey('IncludeLocalMusic')) {
 } else {
     $false
 }
-$env:FOCUS_BUDDY_BUNDLE_MUSIC = if ($BundleMusic) { '1' } else { '0' }
+$env:FOCUS_BUNDLE_MUSIC = if ($BundleMusic) { '1' } else { '0' }
 
 & $Python -s -c "import PyInstaller" 2>$null
 if ($LASTEXITCODE -ne 0) {
     throw 'PyInstaller is missing. Run: .\.venv\Scripts\python.exe -m pip install -r requirements-build.txt'
 }
 
-& $Python -s -m PyInstaller --noconfirm --clean .\FocusBuddy.spec
+& $Python -s -m PyInstaller --noconfirm --clean .\Focus.spec
 if ($LASTEXITCODE -ne 0) {
     throw 'PyInstaller build failed.'
 }
@@ -49,7 +49,7 @@ Copy-Item -LiteralPath (Join-Path $ProjectRoot 'README.md') -Destination (Join-P
 
 New-Item -ItemType Directory -Path $ReleaseRoot -Force | Out-Null
 $MusicSuffix = if ($BundleMusic) { '-with-local-music' } else { '' }
-$ZipPath = Join-Path $ReleaseRoot "FocusBuddyAI-Portable-$Version$MusicSuffix.zip"
+$ZipPath = Join-Path $ReleaseRoot "Focus-Portable-$Version$MusicSuffix.zip"
 if ($PortableZip) {
     if (Test-Path -LiteralPath $ZipPath) {
         Remove-Item -LiteralPath $ZipPath -Force
@@ -59,7 +59,7 @@ if ($PortableZip) {
 
 $InnoCandidates = @(
     @(
-        $env:FOCUS_BUDDY_ISCC,
+        $env:FOCUS_ISCC,
         'D:\Agent\tools\Inno Setup 6\ISCC.exe',
         'C:\Program Files (x86)\Inno Setup 6\ISCC.exe',
         'C:\Program Files\Inno Setup 6\ISCC.exe'
@@ -68,7 +68,7 @@ $InnoCandidates = @(
 
 if (-not $SkipInstaller -and $InnoCandidates.Count -gt 0) {
     $InnoCompiler = $InnoCandidates[0]
-    & $InnoCompiler "/DMyAppVersion=$Version" '.\installer\FocusBuddy.iss'
+    & $InnoCompiler "/DMyAppVersion=$Version" '.\installer\Focus.iss'
     if ($LASTEXITCODE -ne 0) {
         throw 'Inno Setup build failed.'
     }

@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from PIL import Image, ImageDraw
 
-from focus_agent.cat_skins import cat_growth_asset_path
+from focus_agent.cat_skins import cat_growth_asset_path, cat_reaction_asset_path
 from focus_agent.custom_pets import CustomPetStore
 from focus_agent.profile_store import FocusProfileStore
 
@@ -26,6 +26,24 @@ def sample_pet_data_url() -> str:
     draw.ellipse((160, 155, 185, 180), fill="#20251e")
     draw.ellipse((235, 155, 260, 180), fill="#20251e")
     draw.ellipse((201, 198, 221, 215), fill="#8e4e4e")
+    output = io.BytesIO()
+    image.save(output, "PNG")
+    return "data:image/png;base64," + base64.b64encode(output.getvalue()).decode("ascii")
+
+
+def sample_action_sheet_data_url() -> str:
+    image = Image.new("RGB", (800, 800), "#176b45")
+    draw = ImageDraw.Draw(image)
+    for index, (x, y) in enumerate(((200, 200), (600, 200), (200, 600), (600, 600))):
+        offset = index * 10
+        draw.ellipse(
+            (x - 115 + offset, y - 130, x + 115 + offset, y + 125),
+            fill=("#d78a55", "#e09a65", "#c87b48", "#b96b42")[index],
+            outline="#f8edcf",
+            width=10,
+        )
+        draw.ellipse((x - 55 + offset, y - 35, x - 30 + offset, y - 10), fill="#20251e")
+        draw.ellipse((x + 30 + offset, y - 35, x + 55 + offset, y - 10), fill="#20251e")
     output = io.BytesIO()
     image.save(output, "PNG")
     return "data:image/png;base64," + base64.b64encode(output.getvalue()).decode("ascii")
@@ -49,6 +67,12 @@ class CustomPetTests(unittest.TestCase):
             self.assertTrue(path.is_file())
             with Image.open(path) as image:
                 self.assertEqual(image.size, (560, 340))
+        self.assertEqual(set(item["action_assets"]), {"idle", "happy", "wiggle", "angry"})
+        for filename in ("idle.png", "happy.png", "wiggle.png", "angry.png"):
+            path = self.pet_store.root / item["custom_id"] / filename
+            self.assertTrue(path.is_file())
+            with Image.open(path) as image:
+                self.assertEqual(image.size, (560, 340))
 
     def test_new_profile_starts_with_milk_cow_sheriff(self):
         profile = FocusProfileStore(
@@ -58,6 +82,19 @@ class CustomPetTests(unittest.TestCase):
         self.assertEqual(profile["pet"]["skin"], "tuxedo")
         selected = next(item for item in profile["cat_skins"] if item["id"] == "tuxedo")
         self.assertEqual(selected["name"], "奶牛警长")
+
+    def test_ai_contact_sheet_is_split_into_distinct_action_assets(self):
+        item = self.pet_store.create(
+            "四格",
+            sample_action_sheet_data_url(),
+            renderer="gemini-action-sheet+local-growth-v2",
+        )
+        hashes = {
+            (self.pet_store.root / item["custom_id"] / filename).read_bytes()
+            for filename in ("idle.png", "happy.png", "wiggle.png", "angry.png")
+        }
+        self.assertEqual(len(hashes), 4)
+        self.assertIn("四种动作", item["description"])
 
     def test_custom_pet_can_be_adopted_and_deleted(self):
         profile = FocusProfileStore(
@@ -85,6 +122,10 @@ class CustomPetTests(unittest.TestCase):
             self.assertEqual(guardian.name, "guardian.png")
             self.assertTrue(adult.is_file())
             self.assertTrue(guardian.is_file())
+            self.assertEqual(
+                cat_reaction_asset_path(item["skin"], "happy").name,
+                "happy.png",
+            )
 
     def test_invalid_or_oversized_payload_is_rejected(self):
         with self.assertRaises(ValueError):

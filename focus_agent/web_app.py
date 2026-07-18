@@ -25,13 +25,13 @@ from .paths import resource_root, user_data_root
 
 PROJECT_ROOT = resource_root()
 WEB_ROOT = PROJECT_ROOT / "web"
-DESKTOP_WINDOW_ARG = "--focus-buddy-desktop-window"
+DESKTOP_WINDOW_ARG = "--focus-desktop-window"
 
 
 def _startup_trace(message: str) -> None:
     """Expose opt-in milestones for diagnosing packaged startup failures."""
-    if os.environ.get("FOCUS_BUDDY_STARTUP_TRACE", "").strip() == "1":
-        print(f"[FocusBuddyAI] {message}", flush=True)
+    if os.environ.get("FOCUS_STARTUP_TRACE", "").strip() == "1":
+        print(f"[Focus] {message}", flush=True)
 
 
 def _desktop_window_command(url: str) -> list[str]:
@@ -48,7 +48,7 @@ def _run_desktop_window(url: str) -> None:
         storage = user_data_root() / "WebView2"
         storage.mkdir(parents=True, exist_ok=True)
         webview.create_window(
-            "Focus Buddy",
+            "Focus",
             url,
             width=1440,
             height=900,
@@ -70,7 +70,7 @@ def _run_desktop_window(url: str) -> None:
 class FocusHTTPServer(ThreadingHTTPServer):
     daemon_threads = True
     # HTTPServer enables SO_REUSEADDR by default. On Windows this can let two
-    # Focus Buddy editions bind the same port, while traffic keeps reaching the
+    # Focus editions bind the same port, while traffic keeps reaching the
     # older process. Every running edition must own a distinct port.
     allow_reuse_address = False
 
@@ -125,7 +125,7 @@ class FocusRequestHandler(BaseHTTPRequestHandler):
             f"http://localhost:{self.server.server_port}",
         }
         if origin not in allowed:
-            raise PermissionError("此接口只能由 Focus Buddy 本机窗口调用")
+            raise PermissionError("此接口只能由 Focus 本机窗口调用")
 
     def do_GET(self) -> None:
         path = urlparse(self.path).path
@@ -133,7 +133,7 @@ class FocusRequestHandler(BaseHTTPRequestHandler):
             self._json({"ok": True, "data": self.server.controller.status()})
             return
         if path == "/api/health":
-            self._json({"ok": True, "data": {"service": "focus-buddy-ai", "version": 8}})
+            self._json({"ok": True, "data": {"service": "focus", "version": 8}})
             return
         if path == "/api/ui/status":
             self._json(
@@ -400,7 +400,7 @@ def main() -> None:
     _startup_trace(f"server ready on {server.server_port}")
     url = f"http://127.0.0.1:{server.server_port}/"
     desktop_process: subprocess.Popen | None = None
-    if os.environ.get("FOCUS_BUDDY_NO_BROWSER", "").strip() != "1":
+    if os.environ.get("FOCUS_NO_BROWSER", "").strip() != "1":
         try:
             desktop_process = subprocess.Popen(
                 _desktop_window_command(url),

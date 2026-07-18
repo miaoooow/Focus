@@ -76,7 +76,7 @@ class AIPlanningResult:
 def build_ai_planning_messages(goal: str, catalog: tuple[dict, ...]) -> list[dict[str, str]]:
     """Send only a compact scene catalog and untrusted goal text to Ollama."""
     system = """
-你是 Focus Buddy 的本地任务场景规划器。请理解用户想完成的结果，从给定场景目录中选择完成任务真正需要的最小场景。
+你是 Focus 的本地任务场景规划器。请理解用户想完成的结果，从给定场景目录中选择完成任务真正需要的最小场景。
 
 只输出一个 JSON 对象，不要 Markdown、解释或额外字段。字段必须完整：
 - duration_minutes：1至480整数；没写时填45。

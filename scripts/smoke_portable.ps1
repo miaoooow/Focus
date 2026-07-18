@@ -1,5 +1,5 @@
 param(
-    [string]$Executable = (Join-Path (Split-Path -Parent $PSScriptRoot) 'dist\FocusBuddyAI\FocusBuddyAI.exe'),
+    [string]$Executable = (Join-Path (Split-Path -Parent $PSScriptRoot) 'dist\Focus\Focus.exe'),
     [switch]$RequireAI,
     [switch]$RequireFallback
 )
@@ -25,10 +25,10 @@ if (Test-Path -LiteralPath $DataRoot) {
 }
 
 try {
-    $env:FOCUS_BUDDY_NO_BROWSER = '1'
+    $env:FOCUS_NO_BROWSER = '1'
     $env:FOCUS_AGENT_DATA_DIR = $DataRoot
     if ($RequireFallback) {
-        $env:FOCUS_BUDDY_OLLAMA_URL = 'http://127.0.0.1:65534'
+        $env:FOCUS_OLLAMA_URL = 'http://127.0.0.1:65534'
     }
     $Process = Start-Process -FilePath $Executable -WindowStyle Hidden -PassThru
 
@@ -47,7 +47,7 @@ try {
                 if (
                     $health.ok -and
                     $health.data.version -eq 8 -and
-                    $health.data.service -eq 'focus-buddy-ai'
+                    $health.data.service -eq 'focus'
                 ) {
                     $BaseUrl = $candidate
                     $Health = $health
@@ -63,7 +63,7 @@ try {
         }
     }
     if (-not $BaseUrl) {
-        throw 'Packaged app did not expose the Focus Buddy AI local API'
+        throw 'Packaged app did not expose the Focus AI local API'
     }
     $initialState = Invoke-RestMethod -Uri "$BaseUrl/api/state" -TimeoutSec 5
     if ($initialState.data.profile.pet.skin -ne 'tuxedo') {
@@ -119,7 +119,7 @@ try {
     $photoBytes = [IO.File]::ReadAllBytes((Join-Path $ProjectRoot 'pictures\focus.png'))
     $imageData = 'data:image/png;base64,' + [Convert]::ToBase64String($photoBytes)
     $petBody = @{
-        name = 'SmokeBuddy'
+        name = 'SmokePet'
         image = $imageData
     } | ConvertTo-Json -Compress
     $created = Invoke-RestMethod -Uri "$BaseUrl/api/pet/custom/create" -Method Post `
@@ -133,6 +133,10 @@ try {
         Select-Object -First 1
     if (-not $catalogItem -or $catalogItem.stage_assets.Count -ne 4) {
         throw 'Packaged custom pet growth assets are incomplete'
+    }
+    $actionAssetCount = @($catalogItem.action_assets.PSObject.Properties).Count
+    if (-not $catalogItem.action_assets -or $actionAssetCount -ne 4) {
+        throw 'Packaged custom pet action assets are incomplete'
     }
     $assetResponse = Invoke-WebRequest -Uri ($BaseUrl + $catalogItem.stage_assets[3]) `
         -TimeoutSec 5 -UseBasicParsing
@@ -159,6 +163,7 @@ try {
         Scenarios = $plan.data.scenes.Count
         CuratedAudioFiles = $media.data.file_count
         CustomGrowthAssets = $catalogItem.stage_assets.Count
+        CustomActionAssets = $actionAssetCount
         CustomPetDeleteFallback = $deleted.data.pet.skin
     } | Format-List
 
@@ -169,9 +174,9 @@ try {
     if ($Process -and -not $Process.HasExited) {
         Stop-Process -Id $Process.Id -Force
     }
-    Remove-Item Env:FOCUS_BUDDY_NO_BROWSER -ErrorAction SilentlyContinue
+    Remove-Item Env:FOCUS_NO_BROWSER -ErrorAction SilentlyContinue
     Remove-Item Env:FOCUS_AGENT_DATA_DIR -ErrorAction SilentlyContinue
-    Remove-Item Env:FOCUS_BUDDY_OLLAMA_URL -ErrorAction SilentlyContinue
+    Remove-Item Env:FOCUS_OLLAMA_URL -ErrorAction SilentlyContinue
     if (Test-Path -LiteralPath $DataRoot) {
         Remove-Item -LiteralPath $DataRoot -Recurse -Force
     }

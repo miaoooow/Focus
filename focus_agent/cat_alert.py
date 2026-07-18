@@ -7,7 +7,7 @@ import time
 import tkinter as tk
 from typing import Callable
 
-from .cat_skins import cat_growth_asset_path, normalize_cat_skin
+from .cat_skins import cat_reaction_asset_path, normalize_cat_skin
 from .controller import NativeAlert, NativeReaction, NativeSuggestion
 
 
@@ -35,17 +35,24 @@ class CatAlertWindow:
         self._image_cache: dict[str, tk.PhotoImage] = {}
         self._callbacks: dict[str, Callable[[], object]] = {}
         self._cat_age = "young"
-        self._activate_skin("orange", 0)
+        self._activate_skin("tuxedo", 0)
 
-    def _activate_skin(self, skin_id: str, stage_index: int = 0) -> None:
+    def _activate_skin(
+        self,
+        skin_id: str,
+        stage_index: int = 0,
+        action: str = "idle",
+    ) -> None:
         skin_id = normalize_cat_skin(skin_id)
         age = "young" if int(stage_index) <= 1 else "grown"
         self._cat_age = age
-        cache_key = f"{skin_id}:{age}"
+        cache_key = f"{skin_id}:{age}:{action}"
         try:
             image = self._image_cache.get(cache_key)
             if image is None:
-                image = tk.PhotoImage(file=str(cat_growth_asset_path(skin_id, stage_index)))
+                image = tk.PhotoImage(
+                    file=str(cat_reaction_asset_path(skin_id, action, stage_index))
+                )
                 self._image_cache[cache_key] = image
             self.cat_image = image
             self.walk_frames = [self.cat_image]
@@ -54,8 +61,8 @@ class CatAlertWindow:
             self.walk_frames = []
 
     def show(self, alert: NativeAlert) -> None:
-        self._activate_skin(alert.cat_skin, alert.cat_stage_index)
         mood = "wiggle" if alert.alert_count <= 2 else "angry"
+        self._activate_skin(alert.cat_skin, alert.cat_stage_index, mood)
         title = f"第 {alert.alert_count} 次偏航 · 已记账"
         detail = (
             f"在 {alert.target_label} 停留 {alert.elapsed_seconds}s"
@@ -87,7 +94,7 @@ class CatAlertWindow:
         on_remember: Callable[[], object],
         on_dismiss: Callable[[], object],
     ) -> None:
-        self._activate_skin(suggestion.cat_skin, suggestion.cat_stage_index)
+        self._activate_skin(suggestion.cat_skin, suggestion.cat_stage_index, "idle")
         self._show_scene(
             mood="curious",
             title=f"{suggestion.cat_name}闻到了任务的味道",
@@ -104,7 +111,8 @@ class CatAlertWindow:
         )
 
     def show_reaction(self, reaction: NativeReaction) -> None:
-        self._activate_skin(reaction.cat_skin, reaction.cat_stage_index)
+        action = "happy" if reaction.kind == "shy" else reaction.kind
+        self._activate_skin(reaction.cat_skin, reaction.cat_stage_index, action)
         labels = {
             "shy": "奖励已结算 · 历史成长永久保留",
             "wiggle": "偏航动作预览 · 不实际扣猫币",

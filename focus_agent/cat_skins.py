@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .custom_pets import (
+    custom_pet_action_path,
     custom_pet_asset_path,
     custom_pet_exists,
     custom_pet_id_from_skin,
@@ -87,3 +88,18 @@ def cat_growth_asset_path(skin_id: str | None, stage_index: int) -> Path:
         if young.exists():
             return young
     return cat_skin_asset_path(skin_id)
+
+
+def cat_reaction_asset_path(
+    skin_id: str | None,
+    action: str,
+    stage_index: int = 0,
+) -> Path:
+    """Resolve an action-specific custom asset, with growth art as fallback."""
+    normalized = normalize_cat_skin(skin_id)
+    custom_id = custom_pet_id_from_skin(normalized)
+    if custom_id:
+        candidate = custom_pet_action_path(custom_id, action)
+        if candidate.is_file():
+            return candidate
+    return cat_growth_asset_path(normalized, stage_index)

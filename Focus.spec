@@ -15,7 +15,7 @@ datas = [
 # Local tracks are optional because public redistribution requires the owner to
 # verify audio licences. The personal/demo build can include playable formats
 # while encrypted NCM and lyric sidecars are always excluded.
-if os.environ.get("FOCUS_BUDDY_BUNDLE_MUSIC", "0") == "1":
+if os.environ.get("FOCUS_BUNDLE_MUSIC", "0") == "1":
     music_root = project_root / "Musics"
     for track in music_root.rglob("*"):
         if track.is_file() and track.suffix.casefold() in {".mp3", ".wav", ".ogg", ".m4a"}:
@@ -43,16 +43,16 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="FocusBuddyAI",
+    name="Focus",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
-    console=os.environ.get("FOCUS_BUDDY_CONSOLE_BUILD", "0") == "1",
+    console=os.environ.get("FOCUS_CONSOLE_BUILD", "0") == "1",
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
-    icon=str(project_root / "assets" / "branding" / "focus-buddy.ico"),
+    icon=str(project_root / "assets" / "branding" / "focus.ico"),
     codesign_identity=None,
     entitlements_file=None,
 )
@@ -64,5 +64,5 @@ coll = COLLECT(
     strip=False,
     upx=False,
     upx_exclude=[],
-    name="FocusBuddyAI",
+    name="Focus",
 )

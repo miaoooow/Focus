@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#12392c" />
-    <meta name="description" content="Focus Buddy 网页版：免安装的专注计时、任务规划与小猫养成。" />
-    <title>Focus Buddy · 网页版</title>
+    <meta name="description" content="Focus 网页版：免安装的专注计时、任务规划与小猫养成。" />
+    <title>Focus · 网页版</title>
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -14,10 +14,10 @@
     <div class="ambient ambient-two"></div>
 
     <header class="topbar">
-      <a class="brand" href="#app" aria-label="Focus Buddy 首页">
+      <a class="brand" href="#app" aria-label="Focus 首页">
         <span class="brand-mark">F</span>
         <span>
-          <b>Focus Buddy</b>
+          <b>Focus</b>
           <small id="edition-label">WEB EDITION</small>
         </span>
       </a>
@@ -142,12 +142,13 @@
         <div class="section-copy">
           <p class="eyebrow">SOUND GARDEN</p>
           <h2>给大脑一点不抢戏的背景。</h2>
-          <p>网页版使用浏览器实时合成环境声，不下载第三方音乐，也不会上传任何内容。</p>
+          <p>选择雨幕、溪流、海岸或鸟鸣，让小猫替你守住这一段节奏。</p>
         </div>
         <div class="sound-options">
-          <button class="sound-card" data-sound="rain"><span>雨幕</span><small>柔和宽频雨声</small><i></i></button>
-          <button class="sound-card" data-sound="stream"><span>溪流</span><small>清亮流动水声</small><i></i></button>
-          <button class="sound-card" data-sound="wind"><span>夜风</span><small>低频缓慢呼吸</small><i></i></button>
+          <button class="sound-card" data-sound="media/sounds/The Nature Sounds SocietyJapan - 雨落森林.ogg"><span>雨幕</span><small>The Nature Sounds SocietyJapan</small><i></i></button>
+          <button class="sound-card" data-sound="media/sounds/The Nature Sounds SocietyJapan - 林间溪流.ogg"><span>溪流</span><small>The Nature Sounds SocietyJapan</small><i></i></button>
+          <button class="sound-card" data-sound="media/sounds/Echoes of Nature - 卵石海岸.ogg"><span>海岸</span><small>Echoes of Nature</small><i></i></button>
+          <button class="sound-card" data-sound="media/sounds/The Nature Sounds SocietyJapan - 溪流与鸟鸣.ogg"><span>鸟鸣</span><small>The Nature Sounds SocietyJapan</small><i></i></button>
           <button id="sound-stop" class="sound-card stop"><span>静音</span><small>把房间还给安静</small><i></i></button>
         </div>
       </section>
@@ -173,19 +174,19 @@
               <input id="pet-name" maxlength="12" value="Luna" />
             </label>
             <label class="pet-upload">
-              <span>上传自家宠物照片</span>
+              <span>上传照片，生成四种动作</span>
               <input id="pet-photo" type="file" accept="image/png,image/jpeg,image/webp" />
             </label>
             <button id="save-pet" type="button">保存领养信息</button>
             <button id="reset-pet" type="button">恢复 Luna</button>
           </div>
-          <p class="pet-privacy">照片会压缩后保存在当前浏览器，不会上传服务器。</p>
+          <p class="pet-privacy">网页会在当前浏览器本机生成四种卡通动作并保存，不会上传照片。</p>
         </div>
       </section>
     </main>
 
     <footer>
-      <span>Focus Buddy Web · 数据仅保存在当前浏览器</span>
+      <span>Focus Web · 数据仅保存在当前浏览器</span>
       <a href="https://github.com/miaoooow/Focus-Buddy">GitHub</a>
     </footer>
     <script src="app.js"></script>

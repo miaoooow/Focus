@@ -20,6 +20,12 @@ from .paths import user_data_root
 CUSTOM_PREFIX = "custom:"
 CUSTOM_ID_PATTERN = re.compile(r"^[a-f0-9]{16}$")
 STAGE_FILES = ("baby.png", "young.png", "adult.png", "guardian.png")
+ACTION_FILES = {
+    "idle": "idle.png",
+    "happy": "happy.png",
+    "wiggle": "wiggle.png",
+    "angry": "angry.png",
+}
 MAX_UPLOAD_BYTES = 6 * 1024 * 1024
 MAX_IMAGE_SIDE = 6000
 
@@ -42,6 +48,18 @@ def custom_pet_asset_path(
     stages = ("baby.png", "young.png", "adult.png", "guardian.png")
     stage_file = stages[min(3, max(0, int(stage_index)))]
     return (root or user_data_root() / "custom_pets") / custom_id / stage_file
+
+
+def custom_pet_action_path(
+    custom_id: str,
+    action: str,
+    root: Path | None = None,
+) -> Path:
+    if not CUSTOM_ID_PATTERN.fullmatch(str(custom_id)):
+        raise ValueError("自定义宠物编号不合法")
+    normalized = str(action or "idle").strip().casefold()
+    filename = ACTION_FILES.get(normalized, ACTION_FILES["idle"])
+    return (root or user_data_root() / "custom_pets") / custom_id / filename
 
 
 def custom_pet_exists(custom_id: str, root: Path | None = None) -> bool:
@@ -213,6 +231,85 @@ class CustomPetStore:
             )
         return canvas
 
+    @staticmethod
+    def _remove_uniform_background(image: Image.Image) -> Image.Image:
+        """Make the solid contact-sheet background transparent."""
+        rgba = image.convert("RGBA")
+        width, height = rgba.size
+        samples = (
+            rgba.getpixel((2, 2)),
+            rgba.getpixel((max(0, width - 3), 2)),
+            rgba.getpixel((2, max(0, height - 3))),
+            rgba.getpixel((max(0, width - 3), max(0, height - 3))),
+        )
+        background = tuple(sum(pixel[channel] for pixel in samples) // 4 for channel in range(3))
+        solid = Image.new("RGB", rgba.size, background)
+        difference = ImageChops.difference(rgba.convert("RGB"), solid).convert("L")
+        alpha = difference.point(lambda value: max(0, min(255, (value - 18) * 8)))
+        alpha = alpha.filter(ImageFilter.GaussianBlur(0.8))
+        rgba.putalpha(alpha)
+        return rgba
+
+    @staticmethod
+    def _split_action_sheet(sheet: Image.Image) -> dict[str, Image.Image]:
+        """Split the AI-generated 2x2 sheet in reading order."""
+        width, height = sheet.size
+        half_width, half_height = width // 2, height // 2
+        inset_x = max(2, width // 100)
+        inset_y = max(2, height // 100)
+        boxes = (
+            (inset_x, inset_y, half_width - inset_x, half_height - inset_y),
+            (half_width + inset_x, inset_y, width - inset_x, half_height - inset_y),
+            (inset_x, half_height + inset_y, half_width - inset_x, height - inset_y),
+            (half_width + inset_x, half_height + inset_y, width - inset_x, height - inset_y),
+        )
+        return {
+            action: CustomPetStore._remove_uniform_background(sheet.crop(box))
+            for action, box in zip(ACTION_FILES, boxes, strict=True)
+        }
+
+    @staticmethod
+    def _action_image(base: Image.Image, action: str) -> Image.Image:
+        """Place one expression/action on a transparent native-alert canvas."""
+        canvas = Image.new("RGBA", (560, 340), (0, 0, 0, 0))
+        subject = base.convert("RGBA")
+        if subject.getextrema()[3] == (255, 255):
+            diameter = min(subject.size)
+            mask = Image.new("L", subject.size, 0)
+            ImageDraw.Draw(mask).ellipse(
+                (
+                    (subject.width - diameter) // 2,
+                    (subject.height - diameter) // 2,
+                    (subject.width + diameter) // 2,
+                    (subject.height + diameter) // 2,
+                ),
+                fill=255,
+            )
+            subject.putalpha(mask)
+        subject.thumbnail((390, 318), Image.Resampling.LANCZOS)
+        if action == "wiggle":
+            subject = subject.rotate(5, resample=Image.Resampling.BICUBIC, expand=True)
+        x = (canvas.width - subject.width) // 2
+        y = max(5, canvas.height - subject.height - 12)
+        shadow = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
+        ImageDraw.Draw(shadow).ellipse((112, 296, 448, 330), fill=(25, 69, 47, 45))
+        canvas.alpha_composite(shadow)
+        canvas.alpha_composite(subject, (x, y))
+
+        draw = ImageDraw.Draw(canvas)
+        if action == "happy":
+            draw.ellipse((157, 204, 199, 225), fill=(246, 139, 148, 105))
+            draw.ellipse((361, 204, 403, 225), fill=(246, 139, 148, 105))
+            draw.arc((246, 212, 314, 256), 12, 168, fill="#F4A2A8", width=5)
+        elif action == "wiggle":
+            draw.arc((84, 112, 146, 174), 120, 248, fill="#75AE83", width=5)
+            draw.arc((414, 92, 480, 166), 292, 70, fill="#75AE83", width=5)
+        elif action == "angry":
+            draw.line((182, 150, 229, 169), fill="#5C3030", width=8)
+            draw.line((331, 169, 378, 150), fill="#5C3030", width=8)
+            draw.polygon(((438, 226), (481, 211), (468, 252)), fill="#E57B72")
+        return canvas
+
     def create(
         self,
         name: str,
@@ -230,9 +327,26 @@ class CustomPetStore:
         pet_root.mkdir(parents=True, exist_ok=False)
         try:
             (pet_root / f"original.{extension}").write_bytes(raw)
-            cartoon = self._cartoon_base(photo)
+            is_ai_sheet = renderer.startswith("gemini")
+            if is_ai_sheet:
+                action_sources = self._split_action_sheet(photo)
+            else:
+                local_cartoon = self._cartoon_base(photo)
+                action_sources = {
+                    action: local_cartoon.copy()
+                    for action in ACTION_FILES
+                }
+            idle = action_sources["idle"].convert("RGBA")
+            cartoon = Image.new("RGB", idle.size, "#EAF8E8")
+            cartoon.paste(idle.convert("RGB"), mask=idle.getchannel("A"))
             for stage, filename in enumerate(STAGE_FILES):
                 self._stage_image(cartoon, stage).save(
+                    pet_root / filename,
+                    "PNG",
+                    optimize=True,
+                )
+            for action, filename in ACTION_FILES.items():
+                self._action_image(action_sources[action], action).save(
                     pet_root / filename,
                     "PNG",
                     optimize=True,
@@ -241,7 +355,7 @@ class CustomPetStore:
                 "id": custom_id,
                 "name": pet_name,
                 "description": (
-                    "由AI卡通化后在本机生成四段成长形态"
+                    "由AI生成一致角色的四种动作，并在本机生成四段成长形态"
                     if renderer.startswith("gemini")
                     else "由你的照片在本机生成，会随专注时长一起长大"
                 ),
@@ -277,6 +391,10 @@ class CustomPetStore:
         stage_urls = [
             f"/media/custom-pet/{custom_id}/{filename}" for filename in STAGE_FILES
         ]
+        action_urls = {
+            action: f"/media/custom-pet/{custom_id}/{filename}"
+            for action, filename in ACTION_FILES.items()
+        }
         return {
             **item,
             "custom_id": custom_id,
@@ -286,6 +404,7 @@ class CustomPetStore:
             "asset_url": stage_urls[2],
             "young_asset_url": stage_urls[0],
             "stage_assets": stage_urls,
+            "action_assets": action_urls,
         }
 
     def catalog(self) -> list[dict]:

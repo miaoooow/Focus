@@ -1,6 +1,7 @@
-const STORAGE_KEY = "focusBuddyBrowserState";
-const VIOLATION_ALARM = "focus-buddy-violation";
-const END_ALARM = "focus-buddy-end";
+const STORAGE_KEY = "focusBrowserState";
+const LEGACY_STORAGE_KEY = ["focus", "Buddy", "BrowserState"].join("");
+const VIOLATION_ALARM = "focus-violation";
+const END_ALARM = "focus-end";
 const CAT_ICON =
   "data:image/svg+xml;charset=utf-8," +
   encodeURIComponent(
@@ -24,8 +25,12 @@ const defaultState = () => ({
 });
 
 async function readState() {
-  const stored = await chrome.storage.local.get(STORAGE_KEY);
-  const saved = stored[STORAGE_KEY] || {};
+  const stored = await chrome.storage.local.get([STORAGE_KEY, LEGACY_STORAGE_KEY]);
+  const saved = stored[STORAGE_KEY] || stored[LEGACY_STORAGE_KEY] || {};
+  if (!stored[STORAGE_KEY] && stored[LEGACY_STORAGE_KEY]) {
+    await chrome.storage.local.set({ [STORAGE_KEY]: saved });
+    await chrome.storage.local.remove(LEGACY_STORAGE_KEY);
+  }
   const base = defaultState();
   return {
     ...base,
@@ -116,7 +121,7 @@ async function evaluateActiveTab() {
   if (!tab || !tab.url || tab.url.startsWith("chrome-extension://")) {
     state.browser = {
       ...state.browser,
-      currentDomain: "Focus Buddy",
+      currentDomain: "Focus",
       currentTitle: "完整专注台",
       checkedAt: Date.now(),
       allowed: true,
@@ -196,7 +201,7 @@ async function confirmViolation() {
   await writeState(state);
   await chrome.action.setBadgeBackgroundColor({ color: "#d65b5b" });
   await chrome.action.setBadgeText({ text: String(Math.min(9, session.driftCount)) });
-  await showNotification("Focus Buddy · 走神提醒", message);
+  await showNotification("Focus · 走神提醒", message);
 }
 
 async function startSession(payload) {

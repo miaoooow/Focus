@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import os
+import shutil
 import sys
 from pathlib import Path
 
 
-APP_DIR_NAME = "FocusBuddyAI"
+APP_DIR_NAME = "Focus"
+LEGACY_APP_DIR_NAME = "Focus" + "BuddyAI"
 
 
 def resource_root() -> Path:
@@ -37,6 +39,13 @@ def user_data_root() -> Path:
         local_app_data = os.environ.get("LOCALAPPDATA", "").strip()
         base = Path(local_app_data) if local_app_data else Path.home() / "AppData" / "Local"
         root = base / APP_DIR_NAME
+        legacy_root = base / LEGACY_APP_DIR_NAME
+        if not root.exists() and legacy_root.is_dir():
+            try:
+                shutil.copytree(legacy_root, root)
+            except OSError:
+                # A locked legacy cache must never prevent Focus from starting.
+                pass
     else:
         root = resource_root() / ".runtime"
     root.mkdir(parents=True, exist_ok=True)

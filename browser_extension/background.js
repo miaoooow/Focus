@@ -28,7 +28,7 @@ async function locateService() {
     try {
       const response = await request(port, "/api/health");
       const payload = await response.json();
-      if (response.ok && payload?.data?.service === "focus-buddy") {
+      if (response.ok && payload?.data?.service === "focus") {
         cachedPort = port;
         return port;
       }
@@ -69,7 +69,7 @@ async function publishActiveTab() {
 }
 
 chrome.runtime.onMessage.addListener((message) => {
-  if (message?.type === "focus-buddy-heartbeat") publishActiveTab();
+  if (message?.type === "focus-heartbeat") publishActiveTab();
 });
 chrome.tabs.onActivated.addListener(publishActiveTab);
 chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {

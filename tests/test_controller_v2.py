@@ -8,7 +8,7 @@ from focus_agent.controller import FocusController
 from focus_agent.custom_pets import CustomPetStore
 from focus_agent.goal_scenarios import GoalScenarioStore
 from focus_agent.profile_store import FocusProfileStore
-from tests.test_custom_pets import sample_pet_data_url
+from tests.test_custom_pets import sample_action_sheet_data_url, sample_pet_data_url
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -69,6 +69,33 @@ class ControllerV2Tests(unittest.TestCase):
         custom_id = profile["pet"]["skin"].removeprefix("custom:")
         deleted = self.controller.delete_custom_pet(custom_id)
         self.assertEqual(deleted["pet"]["skin"], "tuxedo")
+
+    def test_ai_pet_flow_requires_consent_and_creates_four_actions(self):
+        class FakePetClient:
+            @staticmethod
+            def cartoonize(_image_data):
+                return sample_action_sheet_data_url()
+
+        self.controller.cloud_pet_client = FakePetClient()
+        with self.assertRaises(ValueError):
+            self.controller.create_custom_pet(
+                "云朵",
+                sample_pet_data_url(),
+                renderer="gemini",
+                consent=False,
+            )
+        profile = self.controller.create_custom_pet(
+            "云朵",
+            sample_pet_data_url(),
+            renderer="gemini",
+            consent=True,
+        )
+        selected = next(
+            item for item in profile["cat_skins"]
+            if item["id"] == profile["pet"]["skin"]
+        )
+        self.assertEqual(set(selected["action_assets"]), {"idle", "happy", "wiggle", "angry"})
+        self.assertEqual(selected["renderer"], "gemini-action-sheet+local-growth-v2")
 
 
 if __name__ == "__main__":

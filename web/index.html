@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="/assets/branding/focus-buddy-icon.png" type="image/png">
+  <link rel="icon" href="/assets/branding/focus-icon.png" type="image/png">
   <meta name="color-scheme" content="dark">
-  <title>Focus Buddy · 一键专注版</title>
+  <title>Focus · 一键专注版</title>
   <link rel="stylesheet" href="/styles.css?v=9">
 </head>
 <body>
@@ -13,9 +13,9 @@
   <div class="ambient ambient-b"></div>
 
   <aside class="rail">
-    <a class="brand" href="#" aria-label="Focus Buddy 首页">
+    <a class="brand" href="#" aria-label="Focus 首页">
       <span class="brand-mark"><span></span></span>
-      <span><b>Focus</b><small>Buddy / DESKTOP</small></span>
+      <span><b>Focus</b><small>DESKTOP</small></span>
     </a>
 
     <nav class="nav" aria-label="主导航">
@@ -312,7 +312,7 @@
           <form id="custom-pet-form" class="custom-pet-studio">
             <div class="custom-pet-heading">
               <span>把自家宠物带进来</span>
-              <small>可选本机处理或 AI 卡通化 · 自动生成四段成长形态</small>
+              <small>可选本机处理或 AI 卡通化 · 自动生成四种动作与四段成长形态</small>
             </div>
             <div class="custom-pet-builder">
               <label class="pet-photo-drop" for="custom-pet-file">
@@ -325,7 +325,7 @@
                 <input id="custom-pet-name" maxlength="12" autocomplete="off" placeholder="例如：豆包">
                 <select id="custom-pet-renderer" aria-label="宠物照片处理方式">
                   <option value="local">本机卡通化 · 隐私优先</option>
-                  <option value="gemini">Gemini AI 卡通化 · 需要密钥</option>
+                  <option value="gemini">Gemini 四动作设定图 · 需要密钥</option>
                 </select>
                 <label id="pet-cloud-consent-row" class="pet-cloud-consent" hidden>
                   <input id="pet-cloud-consent" type="checkbox">
@@ -431,10 +431,10 @@
         <small id="openrouter-key-status">未配置。免费路由仍需申请个人 Key，并受服务商限额约束。</small>
       </div>
       <div class="ai-provider-card">
-        <label for="pet-renderer-setting">宠物卡通化</label>
+        <label for="pet-renderer-setting">宠物动画形象</label>
         <select id="pet-renderer-setting">
           <option value="local">本机卡通化 · 不上传</option>
-          <option value="gemini">Gemini 图片模型 · 效果更丰富</option>
+          <option value="gemini">Gemini 四动作设定图 · 效果更丰富</option>
         </select>
         <label for="gemini-key">Gemini API Key</label>
         <input id="gemini-key" type="password" autocomplete="off" placeholder="已保存则可留空">

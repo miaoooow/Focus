@@ -1,4 +1,4 @@
-"""Build the small redistributable Focus Buddy ambience pack from local tracks.
+"""Build the small redistributable Focus ambience pack from local tracks.
 
 The original files stay in ``Musics`` (gitignored). Only the short, compressed
 Opus derivatives under ``assets/soundscapes`` are included in public builds.

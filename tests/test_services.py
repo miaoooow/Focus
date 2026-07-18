@@ -67,7 +67,7 @@ class CloudPlanningClient:
 
 class ServiceTests(unittest.TestCase):
     def test_ollama_endpoint_can_be_overridden_for_offline_validation(self):
-        with patch.dict(os.environ, {"FOCUS_BUDDY_OLLAMA_URL": "http://127.0.0.1:65534"}):
+        with patch.dict(os.environ, {"FOCUS_OLLAMA_URL": "http://127.0.0.1:65534"}):
             client = OllamaClient()
         self.assertEqual(client.base_url, "http://127.0.0.1:65534")
 

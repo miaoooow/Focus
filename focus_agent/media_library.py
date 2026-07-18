@@ -24,7 +24,7 @@ SYNTHETIC_TRACKS = (
     {
         "id": "synth-rain",
         "title": "窗边雨幕",
-        "artist": "Focus Buddy 合成声景",
+        "artist": "Focus 合成声景",
         "category": "rain",
         "url": "",
         "source": "synth",
@@ -33,7 +33,7 @@ SYNTHETIC_TRACKS = (
     {
         "id": "synth-stream",
         "title": "缓慢溪流",
-        "artist": "Focus Buddy 合成声景",
+        "artist": "Focus 合成声景",
         "category": "water",
         "url": "",
         "source": "synth",
@@ -42,7 +42,7 @@ SYNTHETIC_TRACKS = (
     {
         "id": "synth-ocean",
         "title": "深夜海岸",
-        "artist": "Focus Buddy 合成声景",
+        "artist": "Focus 合成声景",
         "category": "ocean",
         "url": "",
         "source": "synth",
@@ -51,7 +51,7 @@ SYNTHETIC_TRACKS = (
     {
         "id": "synth-forest",
         "title": "林间微风",
-        "artist": "Focus Buddy 合成声景",
+        "artist": "Focus 合成声景",
         "category": "birds",
         "url": "",
         "source": "synth",

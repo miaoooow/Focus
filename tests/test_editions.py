@@ -15,7 +15,7 @@ class PublicEditionTests(unittest.TestCase):
         )
         manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["manifest_version"], 3)
-        self.assertEqual(manifest["version"], "3.5.0")
+        self.assertEqual(manifest["version"], "4.0.0")
         self.assertEqual(
             set(manifest["permissions"]),
             {"storage", "tabs", "alarms", "notifications"},
@@ -42,22 +42,27 @@ class PublicEditionTests(unittest.TestCase):
         script = (folder / "app.js").read_text(encoding="utf-8")
         self.assertIn('id="pet-photo"', page)
         self.assertIn('id="pet-name"', page)
-        self.assertIn("compressPetPhoto", script)
-        self.assertIn("createNoiseBuffer", script)
+        self.assertIn("createPetActionSet", script)
+        self.assertIn("petActions", script)
+        self.assertNotIn("createNoiseBuffer", script)
+        self.assertIn("assets/soundscapes", (ROOT / ".github" / "workflows" / "pages.yml").read_text(encoding="utf-8"))
         self.assertIn("EXTENSION_MODE", script)
         self.assertIn('extensionSend("start"', script)
         self.assertIn('id="allowed-domains"', page)
+        for sound in (ROOT / "assets" / "soundscapes").glob("*.ogg"):
+            self.assertIn(sound.name, page)
+            self.assertIn(sound.name, (folder / "sw.js").read_text(encoding="utf-8"))
 
     def test_readme_explains_three_editions_and_attribution(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        for phrase in ("Windows 安装版", "浏览器扩展版", "网页版", "项目文件结构"):
+        for phrase in ("Windows EXE", "浏览器完整版本", "网页体验", "项目结构"):
             self.assertIn(phrase, readme)
         self.assertIn("YouTube 博主 **mocha.**", readme)
         self.assertIn("声音花园", readme)
         for asset in (
-            "releases/latest/download/FocusBuddy-Windows-Setup.exe",
-            "releases/latest/download/FocusBuddy-Browser-Extension.zip",
-            "releases/latest/download/FocusBuddy-Web.zip",
+            "releases/latest/download/Focus-Windows-Setup.exe",
+            "releases/latest/download/Focus-Browser-Extension.zip",
+            "releases/latest/download/Focus-Web.zip",
         ):
             self.assertIn(asset, readme)
         self.assertNotIn(r"D:\Agent", readme)
@@ -67,19 +72,20 @@ class PublicEditionTests(unittest.TestCase):
         workflow = (ROOT / ".github" / "workflows" / "pages.yml").read_text(encoding="utf-8")
         self.assertIn("path: site", workflow)
         self.assertIn("cp pictures/*.png site/media/", workflow)
+        self.assertIn("cp assets/soundscapes/*.ogg site/media/sounds/", workflow)
         self.assertIn("actions/upload-pages-artifact@v4", workflow)
         self.assertIn("test -f web_standalone/index.html", workflow)
         self.assertNotIn("path: .", workflow)
 
     def test_windows_installer_is_per_user_and_one_click(self):
-        installer = (ROOT / "installer" / "FocusBuddy.iss").read_text(encoding="utf-8")
+        installer = (ROOT / "installer" / "Focus.iss").read_text(encoding="utf-8")
         for setting in (
             "PrivilegesRequired=lowest",
             "DisableWelcomePage=yes",
             "DisableDirPage=no",
             "DisableReadyPage=yes",
             "DisableFinishedPage=yes",
-            "OutputBaseFilename=FocusBuddy-Windows-Setup",
+            "OutputBaseFilename=Focus-Windows-Setup",
         ):
             self.assertIn(setting, installer)
         self.assertIn('Name: "{autodesktop}\\{#MyAppName}"', installer)
@@ -102,13 +108,13 @@ class PublicEditionTests(unittest.TestCase):
         self.assertNotIn('<input id="ai-plan-toggle" type="checkbox" checked>', page)
 
     def test_windows_brand_assets_and_curated_audio_are_packaged(self):
-        spec = (ROOT / "FocusBuddy.spec").read_text(encoding="utf-8")
-        installer = (ROOT / "installer" / "FocusBuddy.iss").read_text(encoding="utf-8")
+        spec = (ROOT / "Focus.spec").read_text(encoding="utf-8")
+        installer = (ROOT / "installer" / "Focus.iss").read_text(encoding="utf-8")
         self.assertIn('"assets"', spec)
-        self.assertIn("focus-buddy.ico", spec)
+        self.assertIn("focus.ico", spec)
         self.assertIn("SetupIconFile=", installer)
-        self.assertTrue((ROOT / "assets" / "branding" / "focus-buddy-icon.png").is_file())
-        self.assertTrue((ROOT / "assets" / "branding" / "focus-buddy.ico").is_file())
+        self.assertTrue((ROOT / "assets" / "branding" / "focus-icon.png").is_file())
+        self.assertTrue((ROOT / "assets" / "branding" / "focus.ico").is_file())
         soundscapes = list((ROOT / "assets" / "soundscapes").glob("*.ogg"))
         self.assertEqual(len(soundscapes), 4)
         self.assertLess(sum(path.stat().st_size for path in soundscapes), 9 * 1024 * 1024)
@@ -116,9 +122,9 @@ class PublicEditionTests(unittest.TestCase):
     def test_public_artifact_names_are_stable_for_direct_links(self):
         script = (ROOT / "scripts" / "build_public_editions.ps1").read_text(encoding="utf-8")
         for name in (
-            "FocusBuddy-Windows-Setup.exe",
-            "FocusBuddy-Browser-Extension.zip",
-            "FocusBuddy-Web.zip",
+            "Focus-Windows-Setup.exe",
+            "Focus-Browser-Extension.zip",
+            "Focus-Web.zip",
             "SHA256.txt",
         ):
             self.assertIn(name, script)
@@ -126,6 +132,8 @@ class PublicEditionTests(unittest.TestCase):
         self.assertIn("web_standalone\\index.html", script)
         self.assertIn("BrowserStage 'focus.html'", script)
         self.assertIn("$BrowserMedia", script)
+        self.assertIn("$BrowserSounds", script)
+        self.assertIn("$WebSounds", script)
 
 
 if __name__ == "__main__":

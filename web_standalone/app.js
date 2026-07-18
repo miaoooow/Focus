@@ -1,5 +1,5 @@
 const $ = (selector) => document.querySelector(selector);
-const STORAGE_KEY = "focus-buddy-web-v1";
+const STORAGE_KEY = "focus-web-v1";
 const CIRCUMFERENCE = 2 * Math.PI * 96;
 const EXTENSION_MODE = Boolean(globalThis.chrome?.runtime?.id) && location.protocol === "chrome-extension:";
 
@@ -19,14 +19,18 @@ const defaults = {
   session: null,
   petName: "Luna",
   petImage: null,
+  petActions: null,
 };
 
 let state = loadState();
 let timerHandle = null;
 let hiddenAt = null;
-let audioContext = null;
-let soundNodes = [];
+const ambientAudio = new Audio();
+ambientAudio.loop = true;
+ambientAudio.preload = "metadata";
+ambientAudio.volume = 0.42;
 let pendingPetImage = state.petImage;
+let pendingPetActions = state.petActions;
 let lastExtensionEventId = 0;
 let lastExtensionDriftCount = 0;
 let extensionRefreshBusy = false;
@@ -80,6 +84,14 @@ function defaultPetImage(kind = "") {
     happy: "media/happy.png",
     focus: "media/focus.png",
   }[kind] || "media/relax.png";
+}
+
+function selectedPetImage(kind = "") {
+  if (!state.petActions) return state.petImage || defaultPetImage(kind);
+  const action = kind === "annoyed"
+    ? ((state.session?.driftCount || 0) <= 1 ? "wiggle" : "angry")
+    : kind === "happy" ? "happy" : "idle";
+  return state.petActions[action] || state.petImage || defaultPetImage(kind);
 }
 
 function loadState() {
@@ -176,7 +188,7 @@ function catReact(kind, title, note) {
     cat.classList.add(kind);
     image.classList.add(kind);
   }
-  image.src = state.petImage || defaultPetImage(kind);
+  image.src = selectedPetImage(kind);
   $("#cat-note-title").textContent = title;
   $("#cat-note").textContent = note;
 }
@@ -425,7 +437,7 @@ function renderGrowth() {
   $("#pet-name").value = petName();
   const image = $("#hero-pet-image");
   if (!image.classList.contains("annoyed") && !image.classList.contains("happy")) {
-    image.src = state.petImage || defaultPetImage(state.session?.status === "running" ? "focus" : "");
+    image.src = selectedPetImage(state.session?.status === "running" ? "focus" : "");
   }
 }
 
@@ -435,15 +447,13 @@ function render() {
 }
 
 function stopSound() {
-  soundNodes.forEach((node) => {
-    try { node.stop?.(); } catch {}
-    try { node.disconnect?.(); } catch {}
-  });
-  soundNodes = [];
+  ambientAudio.pause();
+  ambientAudio.removeAttribute("src");
+  ambientAudio.load();
   document.querySelectorAll(".sound-card").forEach((button) => button.classList.remove("active"));
 }
 
-function compressPetPhoto(file) {
+function createPetActionSet(file) {
   return new Promise((resolve, reject) => {
     if (!file?.type?.startsWith("image/")) {
       reject(new Error("请选择 PNG、JPG 或 WebP 图片。"));
@@ -452,14 +462,88 @@ function compressPetPhoto(file) {
     const objectUrl = URL.createObjectURL(file);
     const image = new Image();
     image.onload = () => {
-      const maxSide = 512;
-      const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-      canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+      const actions = {};
+      const size = 320;
+      const drawFrame = (action) => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 400;
+        canvas.height = 320;
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.fillStyle = "rgba(21, 73, 52, .18)";
+        context.beginPath();
+        context.ellipse(200, 292, 132, 18, 0, 0, Math.PI * 2);
+        context.fill();
+
+        const sourceRatio = image.naturalWidth / image.naturalHeight;
+        let sourceWidth = image.naturalWidth;
+        let sourceHeight = image.naturalHeight;
+        if (sourceRatio > 1) sourceWidth = image.naturalHeight;
+        else sourceHeight = image.naturalWidth;
+        const sourceX = (image.naturalWidth - sourceWidth) / 2;
+        const sourceY = Math.max(0, (image.naturalHeight - sourceHeight) * .38);
+
+        context.save();
+        context.translate(200, 154);
+        if (action === "wiggle") context.rotate(-.07);
+        context.beginPath();
+        context.ellipse(0, 0, size / 2, size / 2, 0, 0, Math.PI * 2);
+        context.clip();
+        context.filter = action === "angry"
+          ? "saturate(1.08) contrast(1.2)"
+          : "saturate(1.24) contrast(1.1)";
+        context.drawImage(
+          image,
+          sourceX,
+          sourceY,
+          sourceWidth,
+          sourceHeight,
+          -size / 2,
+          -size / 2,
+          size,
+          size,
+        );
+        context.restore();
+        const pixels = context.getImageData(40, 0, size, size);
+        for (let index = 0; index < pixels.data.length; index += 4) {
+          pixels.data[index] = Math.round(pixels.data[index] / 24) * 24;
+          pixels.data[index + 1] = Math.round(pixels.data[index + 1] / 24) * 24;
+          pixels.data[index + 2] = Math.round(pixels.data[index + 2] / 24) * 24;
+        }
+        context.putImageData(pixels, 40, 0);
+
+        context.strokeStyle = "#f6efd9";
+        context.lineWidth = 8;
+        context.beginPath();
+        context.ellipse(200, 154, size / 2, size / 2, 0, 0, Math.PI * 2);
+        context.stroke();
+        if (action === "happy") {
+          context.fillStyle = "rgba(245, 132, 145, .7)";
+          context.beginPath(); context.ellipse(126, 208, 24, 11, 0, 0, Math.PI * 2); context.fill();
+          context.beginPath(); context.ellipse(274, 208, 24, 11, 0, 0, Math.PI * 2); context.fill();
+          context.fillStyle = "#fff4cf";
+          context.font = "32px sans-serif";
+          context.fillText("♡", 304, 90);
+        } else if (action === "wiggle") {
+          context.strokeStyle = "#8bc59a";
+          context.lineWidth = 6;
+          context.beginPath(); context.arc(45, 150, 28, -.8, .8); context.stroke();
+          context.beginPath(); context.arc(355, 130, 28, 2.3, 3.9); context.stroke();
+        } else if (action === "angry") {
+          context.strokeStyle = "#63343a";
+          context.lineWidth = 9;
+          context.beginPath(); context.moveTo(130, 116); context.lineTo(176, 132); context.stroke();
+          context.beginPath(); context.moveTo(224, 132); context.lineTo(270, 116); context.stroke();
+          context.fillStyle = "#e47a72";
+          context.beginPath(); context.moveTo(334, 222); context.lineTo(374, 206); context.lineTo(362, 250); context.fill();
+        }
+        return canvas.toDataURL("image/webp", .72);
+      };
+      ["idle", "happy", "wiggle", "angry"].forEach((action) => {
+        actions[action] = drawFrame(action);
+      });
       URL.revokeObjectURL(objectUrl);
-      resolve(canvas.toDataURL("image/jpeg", .82));
+      resolve({ portrait: actions.idle, actions });
     };
     image.onerror = () => {
       URL.revokeObjectURL(objectUrl);
@@ -473,9 +557,11 @@ async function previewPetPhoto() {
   const file = $("#pet-photo").files?.[0];
   if (!file) return;
   try {
-    pendingPetImage = await compressPetPhoto(file);
+    const generated = await createPetActionSet(file);
+    pendingPetImage = generated.portrait;
+    pendingPetActions = generated.actions;
     $("#hero-pet-image").src = pendingPetImage;
-    $("#form-message").textContent = "新伙伴已经试穿完毕，点“保存领养信息”正式入住。";
+    $("#form-message").textContent = "已在本机生成待机、害羞、扭身和生气四种动作，保存后正式入住。";
   } catch (error) {
     $("#form-message").textContent = error.message;
   }
@@ -484,11 +570,14 @@ async function previewPetPhoto() {
 function savePet() {
   state.petName = $("#pet-name").value.trim().slice(0, 12) || "Luna";
   state.petImage = pendingPetImage || null;
+  state.petActions = pendingPetActions || null;
   try {
     saveState();
   } catch {
     state.petImage = null;
+    state.petActions = null;
     pendingPetImage = null;
+    pendingPetActions = null;
     saveState();
     $("#form-message").textContent = "图片太大，浏览器房间放不下；请换一张更小的。";
     render();
@@ -502,7 +591,9 @@ function savePet() {
 function resetPet() {
   state.petName = "Luna";
   state.petImage = null;
+  state.petActions = null;
   pendingPetImage = null;
+  pendingPetActions = null;
   $("#pet-photo").value = "";
   saveState();
   catReact("happy", "Luna 回来了", "原装小猫重新接管了计时岗位。");
@@ -510,35 +601,15 @@ function resetPet() {
   renderGrowth();
 }
 
-function createNoiseBuffer(context) {
-  const length = context.sampleRate * 3;
-  const buffer = context.createBuffer(1, length, context.sampleRate);
-  const data = buffer.getChannelData(0);
-  for (let index = 0; index < length; index += 1) data[index] = Math.random() * 2 - 1;
-  return buffer;
-}
-
-async function playSound(type, button) {
+async function playSound(source, button) {
   stopSound();
-  audioContext ||= new AudioContext();
-  await audioContext.resume();
-  const source = audioContext.createBufferSource();
-  source.buffer = createNoiseBuffer(audioContext);
-  source.loop = true;
-  const filter = audioContext.createBiquadFilter();
-  const gain = audioContext.createGain();
-  const settings = {
-    rain: { kind: "highpass", frequency: 900, gain: 0.12 },
-    stream: { kind: "bandpass", frequency: 1500, gain: 0.09 },
-    wind: { kind: "lowpass", frequency: 420, gain: 0.16 },
-  }[type];
-  filter.type = settings.kind;
-  filter.frequency.value = settings.frequency;
-  gain.gain.value = settings.gain;
-  source.connect(filter).connect(gain).connect(audioContext.destination);
-  source.start();
-  soundNodes = [source, filter, gain];
-  button.classList.add("active");
+  ambientAudio.src = new URL(source, location.href).href;
+  try {
+    await ambientAudio.play();
+    button.classList.add("active");
+  } catch {
+    $("#form-message").textContent = "声音没有开始播放，请再点一次或检查浏览器是否允许音频。";
+  }
 }
 
 $("#goal").addEventListener("input", renderPlan);
@@ -588,7 +659,7 @@ document.addEventListener("visibilitychange", () => {
 
 async function initialize() {
   if (EXTENSION_MODE) {
-    document.title = "Focus Buddy · 完整专注台";
+    document.title = "Focus · 完整专注台";
     $("#edition-label").textContent = "COMPLETE EXTENSION";
     $("#privacy-pill").textContent = "扩展已连接 · 仅本机";
     $("#download-link").textContent = "查看项目";
@@ -598,7 +669,7 @@ async function initialize() {
     $("#monitor-mode-note").textContent =
       "扩展只读取当前标签页的域名和标题用于本轮判断；数据保存在浏览器本机。白名单外持续 8 秒才会提醒。";
     $("#drift-label").textContent = "白名单外";
-    $("footer span").textContent = "Focus Buddy Complete · 专注数据仅保存在扩展本机";
+    $("footer span").textContent = "Focus Complete · 专注数据仅保存在扩展本机";
 
     const fromQuery = normalizeDomain(new URLSearchParams(location.search).get("domain"));
     const active = await extensionSend("activeTab");
@@ -615,7 +686,7 @@ async function initialize() {
       }
       if (state.session?.status === "running" || state.session?.status === "paused") beginTimer();
     } else {
-      $("#form-message").textContent = "扩展后台没有响应，请在扩展管理页重新加载 Focus Buddy。";
+      $("#form-message").textContent = "扩展后台没有响应，请在扩展管理页重新加载 Focus。";
     }
   } else if (state.session?.status === "running") {
     if (remainingMs() <= 0) completeSession();

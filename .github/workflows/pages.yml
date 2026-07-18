@@ -1,10 +1,11 @@
-name: Deploy Focus Buddy Web
+name: Deploy Focus Web
 
 on:
   push:
     branches: [main]
     paths:
       - "web_standalone/**"
+      - "assets/soundscapes/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -38,10 +39,11 @@ jobs:
       - name: Stage web edition
         shell: bash
         run: |
-          mkdir -p site/media
+          mkdir -p site/media/sounds
           cp web_standalone/index.html web_standalone/styles.css web_standalone/app.js site/
           cp web_standalone/manifest.webmanifest web_standalone/sw.js site/
           cp pictures/*.png site/media/
+          cp assets/soundscapes/*.ogg site/media/sounds/
       - name: Upload web edition
         uses: actions/upload-pages-artifact@v4
         with:

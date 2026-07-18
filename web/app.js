@@ -17,6 +17,8 @@ let synthStartedAt = 0;
 let synthElapsedSeconds = 0;
 let synthGain = null;
 let cloudAISettings = null;
+let currentPetActionAssets = {};
+let currentPetGrowthAsset = "";
 
 const goalInput = $("#goal-input");
 const planButton = $("#plan-button");
@@ -385,6 +387,8 @@ function renderProfile(profile) {
   const customStageIndex = Math.min(3, Math.max(0, Number(pet.stage_index || 0)));
   const assetUrl = customStages[customStageIndex]
     || (Number(pet.stage_index || 0) <= 1 ? youngAsset : adultAsset);
+  currentPetGrowthAsset = assetUrl;
+  currentPetActionAssets = selectedSkin?.action_assets || {};
   $("#rail-cat-image").src = assetUrl;
   const focusCatSprite = $(".cat-sprite");
   if (focusCatSprite) focusCatSprite.style.backgroundImage = `url('${assetUrl}')`;
@@ -831,7 +835,7 @@ function updatePetRendererConsent() {
 
 planButton.addEventListener("click", planGoal);
 startButton.addEventListener("click", startSession);
-const currentUIVersion = "3.5.0";
+const currentUIVersion = "4.0.0";
 const savedAIPlanning = localStorage.getItem("focus-ai-planning");
 if (localStorage.getItem("focus-ui-version") !== currentUIVersion) {
   aiPlanToggle.checked = false;
@@ -1009,11 +1013,23 @@ $("#custom-pet-list").addEventListener("click", async (event) => {
 $$('[data-cat-action]').forEach((button) => button.addEventListener("click", async () => {
   const kind = button.dataset.catAction;
   const room = $("#pet-room");
+  const actionKey = kind === "shy" ? "happy" : kind;
+  const actionAsset = currentPetActionAssets[actionKey];
   clearTimeout(reactionTimer);
   room.dataset.reaction = "";
   requestAnimationFrame(() => {
     room.dataset.reaction = kind;
-    reactionTimer = setTimeout(() => { room.dataset.reaction = ""; }, 2700);
+    if (actionAsset) {
+      $(".nurture-kitten").style.backgroundImage = `url('${actionAsset}')`;
+      $(".nurture-head").style.backgroundImage = `url('${actionAsset}')`;
+    }
+    reactionTimer = setTimeout(() => {
+      room.dataset.reaction = "";
+      if (currentPetGrowthAsset) {
+        $(".nurture-kitten").style.backgroundImage = `url('${currentPetGrowthAsset}')`;
+        $(".nurture-head").style.backgroundImage = `url('${currentPetGrowthAsset}')`;
+      }
+    }, 2700);
   });
   try {
     const result = await api("/api/preview/reaction", { kind });

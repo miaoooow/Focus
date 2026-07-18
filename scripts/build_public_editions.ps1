@@ -1,5 +1,5 @@
 param(
-    [string]$Version = '3.5.0',
+    [string]$Version = '4.0.0',
     [bool]$IncludeLocalMusic = $false,
     [switch]$SkipWindowsInstaller
 )
@@ -8,11 +8,11 @@ $ErrorActionPreference = 'Stop'
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $ReleaseRoot = Join-Path $ProjectRoot 'release'
 $StageRoot = Join-Path $ProjectRoot '.tmp\public-editions'
-$BrowserStage = Join-Path $StageRoot 'FocusBuddy-Browser-Extension'
-$WebStage = Join-Path $StageRoot 'FocusBuddy-Web'
-$BrowserZip = Join-Path $ReleaseRoot 'FocusBuddy-Browser-Extension.zip'
-$WebZip = Join-Path $ReleaseRoot 'FocusBuddy-Web.zip'
-$WindowsInstaller = Join-Path $ReleaseRoot 'FocusBuddy-Windows-Setup.exe'
+$BrowserStage = Join-Path $StageRoot 'Focus-Browser-Extension'
+$WebStage = Join-Path $StageRoot 'Focus-Web'
+$BrowserZip = Join-Path $ReleaseRoot 'Focus-Browser-Extension.zip'
+$WebZip = Join-Path $ReleaseRoot 'Focus-Web.zip'
+$WindowsInstaller = Join-Path $ReleaseRoot 'Focus-Windows-Setup.exe'
 $ChecksumFile = Join-Path $ReleaseRoot 'SHA256.txt'
 
 Set-Location $ProjectRoot
@@ -57,6 +57,12 @@ Get-ChildItem -LiteralPath (Join-Path $ProjectRoot 'pictures') -Filter '*.png' -
     ForEach-Object {
         Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $BrowserMedia $_.Name)
     }
+$BrowserSounds = Join-Path $BrowserMedia 'sounds'
+New-Item -ItemType Directory -Path $BrowserSounds -Force | Out-Null
+Get-ChildItem -LiteralPath (Join-Path $ProjectRoot 'assets\soundscapes') -Filter '*.ogg' -File |
+    ForEach-Object {
+        Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $BrowserSounds $_.Name)
+    }
 
 $WebFiles = @('index.html','styles.css','app.js','manifest.webmanifest','sw.js')
 foreach ($name in $WebFiles) {
@@ -68,6 +74,12 @@ New-Item -ItemType Directory -Path $WebMedia -Force | Out-Null
 Get-ChildItem -LiteralPath (Join-Path $ProjectRoot 'pictures') -Filter '*.png' -File |
     ForEach-Object {
         Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $WebMedia $_.Name)
+    }
+$WebSounds = Join-Path $WebMedia 'sounds'
+New-Item -ItemType Directory -Path $WebSounds -Force | Out-Null
+Get-ChildItem -LiteralPath (Join-Path $ProjectRoot 'assets\soundscapes') -Filter '*.ogg' -File |
+    ForEach-Object {
+        Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $WebSounds $_.Name)
     }
 
 foreach ($archive in @($BrowserZip,$WebZip)) {

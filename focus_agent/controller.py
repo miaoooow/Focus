@@ -270,7 +270,7 @@ class FocusController:
                 return self.profile.create_custom_pet(
                     name,
                     generated,
-                    renderer="gemini-image+local-growth-v1",
+                    renderer="gemini-action-sheet+local-growth-v2",
                 )
             if selected != "local":
                 raise ValueError("不支持这种宠物生成方式")
@@ -418,7 +418,7 @@ class FocusController:
         local_domain = str(snapshot.browser_domain or "").casefold().rstrip(".")
         is_control_page = (
             local_domain in {"127.0.0.1", "localhost"}
-            and "focus buddy" in str(snapshot.window_title or "").casefold()
+            and "focus" in str(snapshot.window_title or "").casefold()
         )
         if is_control_page:
             compliant = ForegroundSnapshot(
@@ -429,7 +429,7 @@ class FocusController:
                 snapshot.input_idle_seconds,
                 snapshot.browser_domain,
             )
-            return compliant, "Focus Buddy 控制台 · 自动放行", None
+            return compliant, "Focus 控制台 · 自动放行", None
         matches = matching_rules(config.allowed_targets, snapshot)
         if matches:
             domain_match = next((rule for rule in matches if rule.kind == "domain"), None)

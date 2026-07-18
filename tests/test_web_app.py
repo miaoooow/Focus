@@ -113,11 +113,11 @@ class WebAppTests(unittest.TestCase):
                 payload = json.loads(response.read().decode("utf-8"))
             self.assertTrue(payload["ok"])
             self.assertEqual(payload["data"]["version"], 8)
-            self.assertEqual(payload["data"]["service"], "focus-buddy-ai")
+            self.assertEqual(payload["data"]["service"], "focus")
             with urllib.request.urlopen(f"{base}/", timeout=3) as response:
                 html = response.read().decode("utf-8")
                 csp = response.headers.get("Content-Security-Policy", "")
-            self.assertIn("Focus Buddy", html)
+            self.assertIn("Focus", html)
             self.assertIn("default-src 'self'", csp)
             self.assertIn("media-src 'self'", csp)
             self.assertIn("/styles.css?v=9", html)

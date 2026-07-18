@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Focus Buddy 网址桥接",
+  "name": "Focus 网址桥接",
   "version": "1.0.0",
-  "description": "把当前活动标签页的域名发送给本机 Focus Buddy，不上传完整网址或浏览历史。",
+  "description": "把当前活动标签页的域名发送给本机 Focus，不上传完整网址或浏览历史。",
   "permissions": ["tabs"],
   "host_permissions": ["http://127.0.0.1/*"],
   "background": {

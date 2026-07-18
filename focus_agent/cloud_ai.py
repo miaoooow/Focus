@@ -1,6 +1,6 @@
 """Optional user-owned cloud AI connections.
 
-No shared API key is embedded in Focus Buddy. On Windows, keys saved from the
+No shared API key is embedded in Focus. On Windows, keys saved from the
 local UI are encrypted with DPAPI and can only be decrypted by the same user.
 """
 
@@ -50,7 +50,7 @@ def _dpapi_transform(raw: bytes, *, protect: bool) -> bytes:
     output = _DataBlob()
     crypt32 = ctypes.windll.crypt32
     function = crypt32.CryptProtectData if protect else crypt32.CryptUnprotectData
-    description = "Focus Buddy local API key" if protect else None
+    description = "Focus local API key" if protect else None
     arguments = (
         ctypes.byref(source),
         description,
@@ -216,7 +216,7 @@ class OpenRouterClient:
                 "Authorization": f"Bearer {key}",
                 "Content-Type": "application/json",
                 "HTTP-Referer": "https://github.com/miaoooow/Focus-Buddy",
-                "X-Title": "Focus Buddy",
+                "X-Title": "Focus",
             },
             method="POST",
         )
@@ -244,7 +244,7 @@ class OpenRouterClient:
 
 
 class GeminiPetClient:
-    """Turn a user photo into one illustration, then let local code grow it."""
+    """Turn a pet photo into a consistent four-action animation sheet."""
 
     def __init__(self, settings: CloudAISettingsStore):
         self.settings = settings
@@ -284,9 +284,12 @@ class GeminiPetClient:
         model = self.settings.snapshot()["gemini_image_model"]
         endpoint = GEMINI_ENDPOINT.format(model=model)
         prompt = (
-            "把这只真实宠物设计成 Focus Buddy 的原创二维动画角色。严格保留毛色、斑纹、"
-            "耳朵轮廓和眼睛特征；正面或四分之三视角，完整头部和上半身，深绿色纯色背景，"
-            "奶油色细描边，简洁高级、可爱但不幼稚。不要文字、不要水印、不要添加其他动物。"
+            "把照片里的真实宠物设计成 Focus 的原创二维动画角色，并输出严格的2x2四格动作设定图。"
+            "四格必须是同一只宠物、同一画风、同一比例，并准确保留毛色、斑纹、耳朵轮廓、眼睛和"
+            "物种特征。左上：安静站立；右上：开心害羞并带腮红；左下：走神后摇头扭身；右下："
+            "生气抬爪准备推杯子。每格只出现完整的一只宠物，主体居中且留足边距，使用完全相同的"
+            "纯绿色背景和奶油色细描边。简洁高级、可爱但不幼稚。不要格线、文字、水印、道具、"
+            "阴影或其他动物。"
         )
         request = urllib.request.Request(
             endpoint,

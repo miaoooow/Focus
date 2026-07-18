@@ -1,4 +1,4 @@
-const CACHE_NAME = "focus-buddy-web-3.4.0";
+const CACHE_NAME = "focus-web-4.0.0";
 const ASSETS = [
   "./",
   "./index.html",
@@ -9,6 +9,10 @@ const ASSETS = [
   "./media/focus.png",
   "./media/confused.png",
   "./media/happy.png",
+  "./media/sounds/The Nature Sounds SocietyJapan - 雨落森林.ogg",
+  "./media/sounds/The Nature Sounds SocietyJapan - 林间溪流.ogg",
+  "./media/sounds/Echoes of Nature - 卵石海岸.ogg",
+  "./media/sounds/The Nature Sounds SocietyJapan - 溪流与鸟鸣.ogg",
 ];
 
 self.addEventListener("install", (event) => {

@@ -19,7 +19,7 @@ if (-not $env:OLLAMA_MODELS -and (Test-Path -LiteralPath 'D:\Agent\Ollama\models
     $env:OLLAMA_MODELS = 'D:\Agent\Ollama\models'
 }
 $env:PYTHONNOUSERSITE = '1'
-$env:FOCUS_BUDDY_MODEL = $Model
+$env:FOCUS_MODEL = $Model
 Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
 
 try {
@@ -30,5 +30,5 @@ try {
 }
 
 Write-Host "Python: $Python"
-Write-Host 'Starting modern local Focus Buddy...' 
+Write-Host 'Starting modern local Focus...'
 & $Python -s -m focus_agent.web_app
