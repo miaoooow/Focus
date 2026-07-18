@@ -15,7 +15,7 @@ class ApplicationPathTests(unittest.TestCase):
         base = ROOT / ".runtime" / "path-test"
         resources = base / "resources"
         user_data = base / "user-data"
-        extension = resources / "browser_extension"
+        extension = resources / "browser_extension_standalone"
         shutil.rmtree(base, ignore_errors=True)
         try:
             with patch.dict(

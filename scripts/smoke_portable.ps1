@@ -11,6 +11,21 @@ if ($RequireAI -and $RequireFallback) {
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $DataRoot = Join-Path $ProjectRoot '.runtime\portable-smoke'
 $Process = $null
+$Ports = @(8765..8775)
+$OccupiedBefore = @{}
+
+foreach ($port in $Ports) {
+    $probe = [Net.Sockets.TcpClient]::new()
+    try {
+        $connect = $probe.ConnectAsync('127.0.0.1', $port)
+        if ($connect.Wait(100) -and $probe.Connected) {
+            $OccupiedBefore[$port] = $true
+        }
+    } catch {
+    } finally {
+        $probe.Dispose()
+    }
+}
 
 if (-not (Test-Path -LiteralPath $Executable)) {
     throw "Portable executable not found: $Executable"
@@ -35,7 +50,10 @@ try {
     $BaseUrl = $null
     $Health = $null
     for ($attempt = 0; $attempt -lt 80 -and -not $BaseUrl; $attempt++) {
-        foreach ($port in 8765..8775) {
+        foreach ($port in $Ports) {
+            if ($OccupiedBefore.ContainsKey($port)) {
+                continue
+            }
             $probe = [Net.Sockets.TcpClient]::new()
             try {
                 $connect = $probe.ConnectAsync('127.0.0.1', $port)

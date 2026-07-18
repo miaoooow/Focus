@@ -67,9 +67,9 @@
           <label class="ai-plan-switch" for="ai-plan-toggle">
             <input id="ai-plan-toggle" type="checkbox">
             <span><i></i></span>
-            <b>AI 增强（可选）</b>
+            <b>免费 AI 增强（可选）</b>
           </label>
-          <button id="ai-settings-button" class="ai-settings-button" type="button">连接云端 AI</button>
+          <button id="ai-settings-button" class="ai-settings-button" type="button">登录 Focus</button>
           <button id="plan-button" class="primary-button plan-button">
             <span class="button-orb">✦</span><span>解析任务场景</span><b>↗</b>
           </button>
@@ -107,9 +107,9 @@
           <div id="browser-bridge-card" class="browser-bridge-card" data-connected="false">
             <span class="bridge-orb">◎</span>
             <div>
-              <b id="browser-bridge-title">具体网址识别未启用</b>
-              <p id="browser-bridge-copy">只限制整个浏览器不需要安装；要区分浏览器里的具体网站，才需要一次安装本地桥接。</p>
-              <small>Edge：扩展 → 开发人员模式 → 加载解压缩扩展</small>
+              <b id="browser-bridge-title">Focus 扩展尚未连接</b>
+              <p id="browser-bridge-copy">网页和 EXE 使用同一个扩展识别当前网站；安装一次后会自动连接，不需要再添加桥接文件。</p>
+              <small>正式发布后从扩展商店一键安装；开发版可加载安装目录中的扩展。</small>
             </div>
             <button id="copy-extension-path" type="button">复制安装位置</button>
           </div>
@@ -325,11 +325,12 @@
                 <input id="custom-pet-name" maxlength="12" autocomplete="off" placeholder="例如：豆包">
                 <select id="custom-pet-renderer" aria-label="宠物照片处理方式">
                   <option value="local">本机卡通化 · 隐私优先</option>
-                  <option value="gemini">Gemini 四动作设定图 · 需要密钥</option>
+                  <option value="focus_cloud">Focus 免费 AI · 登录后可用</option>
+                  <option value="gemini">Gemini · 自带密钥的高级选项</option>
                 </select>
                 <label id="pet-cloud-consent-row" class="pet-cloud-consent" hidden>
                   <input id="pet-cloud-consent" type="checkbox">
-                  <span>我同意将本次照片发送给 Gemini 处理</span>
+                   <span>我同意将本次照片发送给所选云端模型处理</span>
                 </label>
                 <button id="custom-pet-create" type="submit">生成并领养</button>
               </div>
@@ -415,32 +416,52 @@
   <dialog id="ai-settings-dialog" class="ai-settings-dialog">
     <form id="ai-settings-form" method="dialog">
       <div class="ai-dialog-head">
-        <div><p class="eyebrow">OPTIONAL CLOUD AI</p><h2>连接你自己的模型</h2></div>
+        <div><p class="eyebrow">FOCUS ACCOUNT & FREE AI</p><h2>登录后直接使用免费模型</h2></div>
         <button id="ai-settings-close" type="button" aria-label="关闭">×</button>
       </div>
-      <p class="ai-dialog-intro">不再要求安装 Ollama。任务解析可使用 OpenRouter 免费模型；宠物卡通化可选 Gemini 图片模型。</p>
+      <p class="ai-dialog-intro">普通用户不需要 API Key，也不需要下载模型。Focus 账户使用项目服务端的免费额度；额度不可用时自动回退本地场景库。</p>
+      <div class="ai-provider-card account-card">
+        <label for="focus-account-name">Focus 账户</label>
+        <input id="focus-account-name" autocomplete="username" maxlength="24" placeholder="3—24位用户名">
+        <label for="focus-account-password">密码</label>
+        <input id="focus-account-password" type="password" autocomplete="current-password" maxlength="72" placeholder="至少8位">
+        <small id="focus-account-status">尚未登录。注册和登录均不会要求服务商密钥。</small>
+        <div class="account-actions">
+          <button id="focus-account-register" type="button">注册</button>
+          <button id="focus-account-login" type="button">登录</button>
+          <button id="focus-account-logout" type="button" hidden>退出</button>
+        </div>
+      </div>
       <div class="ai-provider-card">
         <label for="text-provider">任务场景解析</label>
         <select id="text-provider">
           <option value="local">本地场景库 · 最快且完全离线</option>
-          <option value="openrouter">OpenRouter 云端 AI · 无需下载模型</option>
+          <option value="focus_cloud">Focus Cloud 免费模型 · 登录即用</option>
           <option value="ollama">Ollama 本机模型 · 完全本地</option>
+          <option value="openrouter">OpenRouter · 自带密钥的高级选项</option>
         </select>
-        <label for="openrouter-key">OpenRouter API Key</label>
-        <input id="openrouter-key" type="password" autocomplete="off" placeholder="已保存则可留空">
-        <small id="openrouter-key-status">未配置。免费路由仍需申请个人 Key，并受服务商限额约束。</small>
+        <details class="advanced-provider">
+          <summary>高级：使用自己的 OpenRouter Key</summary>
+          <label for="openrouter-key">OpenRouter API Key</label>
+          <input id="openrouter-key" type="password" autocomplete="off" placeholder="已保存则可留空">
+          <small id="openrouter-key-status">只适合希望使用自己额度的用户。</small>
+        </details>
       </div>
       <div class="ai-provider-card">
         <label for="pet-renderer-setting">宠物动画形象</label>
         <select id="pet-renderer-setting">
           <option value="local">本机卡通化 · 不上传</option>
-          <option value="gemini">Gemini 四动作设定图 · 效果更丰富</option>
+          <option value="focus_cloud">Focus 免费 AI · 登录后生成</option>
+          <option value="gemini">Gemini · 自带密钥的高级选项</option>
         </select>
-        <label for="gemini-key">Gemini API Key</label>
-        <input id="gemini-key" type="password" autocomplete="off" placeholder="已保存则可留空">
-        <small id="gemini-key-status">云端图片生成可能产生服务商费用，上传前会再次征得同意。</small>
+        <details class="advanced-provider">
+          <summary>高级：使用自己的 Gemini Key</summary>
+          <label for="gemini-key">Gemini API Key</label>
+          <input id="gemini-key" type="password" autocomplete="off" placeholder="已保存则可留空">
+          <small id="gemini-key-status">上传前仍会再次征得同意。</small>
+        </details>
       </div>
-      <p class="ai-security-note">软件不内置共享密钥；你的 Key 只保存在本机，并由 Windows DPAPI 加密。网页端永远读不到明文。</p>
+      <p class="ai-security-note">Focus 账户令牌和可选个人 Key 都由 Windows DPAPI 加密保存。服务端凭据不会进入 EXE、网页或扩展。</p>
       <div class="ai-dialog-actions">
         <button id="ai-settings-cancel" type="button">暂不连接</button>
         <button id="ai-settings-save" type="submit">保存连接</button>

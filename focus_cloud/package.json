@@ -1,0 +1,14 @@
+{
+  "name": "focus-cloud",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:local": "wrangler d1 execute focus-accounts --local --file=./schema.sql",
+    "db:remote": "wrangler d1 execute focus-accounts --remote --file=./schema.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^4.28.0"
+  }
+}

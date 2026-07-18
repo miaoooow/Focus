@@ -58,4 +58,4 @@ def browser_extension_root() -> Path:
         beside_executable = Path(sys.executable).resolve().parent / "browser_extension"
         if beside_executable.exists():
             return beside_executable
-    return resource_root() / "browser_extension"
+    return resource_root() / "browser_extension_standalone"

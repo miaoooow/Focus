@@ -19,7 +19,7 @@ from .contracts import (
     sanitize_summary_response,
 )
 from .copy_library import FALLBACK_PHRASES, SUMMARY_FALLBACK_PHRASES
-from .cloud_ai import CloudAISettingsStore, OpenRouterClient
+from .cloud_ai import CloudAISettingsStore, FocusCloudClient, OpenRouterClient
 from .goal_scenarios import GoalScenarioStore
 from .ollama_client import OllamaClient
 from .recommendations import fallback_config_for_goal
@@ -50,10 +50,12 @@ class SessionParserService:
         *,
         cloud_settings: CloudAISettingsStore | None = None,
         cloud_client: OpenRouterClient | None = None,
+        focus_cloud_client: FocusCloudClient | None = None,
     ):
         self.client = client
         self.cloud_settings = cloud_settings
         self.cloud_client = cloud_client
+        self.focus_cloud_client = focus_cloud_client
         self.model = os.environ.get("FOCUS_MODEL", "").strip() or model
         try:
             self.ai_timeout_seconds = max(
@@ -152,7 +154,18 @@ class SessionParserService:
         self._ai_status.update({"enabled": True, "state": "thinking", "last_error": ""})
         started = time.perf_counter()
         try:
-            if provider == "openrouter":
+            if provider == "focus_cloud":
+                if self.focus_cloud_client is None:
+                    raise ValueError("Focus Cloud连接尚未初始化")
+                model = "Focus Cloud免费模型"
+                raw = self.focus_cloud_client.chat(
+                    messages=build_ai_planning_messages(goal, self.scenarios.catalog()),
+                    temperature=0.1,
+                    max_context=4096,
+                    timeout_seconds=self.ai_timeout_seconds,
+                )
+                source_prefix = "Focus Cloud"
+            elif provider == "openrouter":
                 if self.cloud_client is None or self.cloud_settings is None:
                     raise ValueError("OpenRouter连接尚未初始化")
                 model = self.cloud_settings.snapshot()["openrouter_model"]

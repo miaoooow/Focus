@@ -548,7 +548,7 @@ function renderBrowserBridge(bridge) {
   $("#browser-bridge-title").textContent = connected ? "具体网址识别已连接" : "具体网址识别未启用";
   $("#browser-bridge-copy").textContent = connected
     ? `${bridge.browser || "浏览器"} 正在识别 ${bridge.current_domain || "当前域名"}，域名只留在内存里。`
-    : "只限制整个浏览器不需要安装；要区分浏览器里的具体网站，才需要一次安装本地桥接。";
+    : "网页与 EXE 都需要同一个 Focus 扩展。安装一次后，它会自动上报当前活动域名，不需要再添加桥接文件。";
 }
 
 function formatAudioTime(seconds) {
@@ -807,15 +807,27 @@ function renderCloudAISettings(settings) {
   $("#text-provider").value = settings.text_provider || "local";
   $("#pet-renderer-setting").value = settings.pet_renderer || "local";
   $("#custom-pet-renderer").value = settings.pet_renderer || "local";
+  const account = settings.focus_account || {};
+  $("#focus-account-status").textContent = account.signed_in
+    ? `已登录 ${account.username} · 用户无需提供API Key`
+    : settings.focus_cloud_available
+      ? "尚未登录。注册和登录均不会要求服务商密钥。"
+      : "Focus Cloud尚未部署，当前仍可使用本地场景库。";
+  $("#focus-account-name").value = account.signed_in ? account.username : "";
+  $("#focus-account-name").disabled = Boolean(account.signed_in);
+  $("#focus-account-password").hidden = Boolean(account.signed_in);
+  $("#focus-account-register").hidden = Boolean(account.signed_in);
+  $("#focus-account-login").hidden = Boolean(account.signed_in);
+  $("#focus-account-logout").hidden = !account.signed_in;
   $("#openrouter-key-status").textContent = settings.openrouter_configured
     ? `已安全保存 · ${settings.openrouter_model}`
     : "未配置。免费路由仍需申请个人 Key，并受服务商限额约束。";
   $("#gemini-key-status").textContent = settings.gemini_configured
     ? `已安全保存 · ${settings.gemini_image_model} · 图片生成可能计费`
     : "云端图片生成可能产生服务商费用，上传前会再次征得同意。";
-  $("#ai-settings-button").textContent = settings.openrouter_configured
-    ? "云端 AI 已连接"
-    : "连接云端 AI";
+  $("#ai-settings-button").textContent = account.signed_in
+    ? `${account.username} · 免费AI`
+    : "登录 Focus";
   updatePetRendererConsent();
 }
 
@@ -828,14 +840,14 @@ async function loadCloudAISettings() {
 }
 
 function updatePetRendererConsent() {
-  const cloud = $("#custom-pet-renderer").value === "gemini";
+  const cloud = ["focus_cloud", "gemini"].includes($("#custom-pet-renderer").value);
   $("#pet-cloud-consent-row").hidden = !cloud;
   if (!cloud) $("#pet-cloud-consent").checked = false;
 }
 
 planButton.addEventListener("click", planGoal);
 startButton.addEventListener("click", startSession);
-const currentUIVersion = "4.0.0";
+const currentUIVersion = "4.1.0";
 const savedAIPlanning = localStorage.getItem("focus-ai-planning");
 if (localStorage.getItem("focus-ui-version") !== currentUIVersion) {
   aiPlanToggle.checked = false;
@@ -878,12 +890,51 @@ $("#ai-settings-form").addEventListener("submit", async (event) => {
     localStorage.setItem("focus-ai-planning", String(aiPlanToggle.checked));
     currentPlan = null;
     $("#ai-settings-dialog").close();
-    showToast(settings.text_provider === "openrouter" ? "云端任务解析已连接" : "AI设置已保存");
+    showToast(settings.text_provider === "focus_cloud" ? "Focus免费任务解析已连接" : "AI设置已保存");
   } catch (error) {
     showToast(error.message, true);
   } finally {
     save.disabled = false;
     save.textContent = "保存连接";
+  }
+});
+
+async function submitFocusAccount(action) {
+  const username = $("#focus-account-name").value.trim();
+  const password = $("#focus-account-password").value;
+  if (!username || password.length < 8) {
+    showToast("请输入用户名和至少8位密码", true);
+    return;
+  }
+  const buttons = [$("#focus-account-register"), $("#focus-account-login")];
+  buttons.forEach((button) => { button.disabled = true; });
+  try {
+    const settings = await api(`/api/account/${action}`, { username, password });
+    $("#focus-account-password").value = "";
+    renderCloudAISettings(settings);
+    $("#text-provider").value = "focus_cloud";
+    $("#pet-renderer-setting").value = "focus_cloud";
+    $("#custom-pet-renderer").value = "focus_cloud";
+    aiPlanToggle.checked = true;
+    localStorage.setItem("focus-ai-planning", "true");
+    showToast(action === "register" ? "账户已创建，免费AI已连接" : "已登录，免费AI已连接");
+  } catch (error) {
+    showToast(error.message, true);
+  } finally {
+    buttons.forEach((button) => { button.disabled = false; });
+  }
+}
+
+$("#focus-account-register").addEventListener("click", () => submitFocusAccount("register"));
+$("#focus-account-login").addEventListener("click", () => submitFocusAccount("login"));
+$("#focus-account-logout").addEventListener("click", async () => {
+  try {
+    renderCloudAISettings(await api("/api/account/logout", {}));
+    aiPlanToggle.checked = false;
+    localStorage.setItem("focus-ai-planning", "false");
+    showToast("已退出Focus账户，本地功能不受影响");
+  } catch (error) {
+    showToast(error.message, true);
   }
 });
 $("#pet-renderer-setting").addEventListener("change", () => {
@@ -960,12 +1011,12 @@ $("#custom-pet-form").addEventListener("submit", async (event) => {
   const button = $("#custom-pet-create");
   const renderer = $("#custom-pet-renderer").value;
   const consent = Boolean($("#pet-cloud-consent").checked);
-  if (renderer === "gemini" && !consent) {
-    showToast("使用AI卡通化前，请先确认本次照片可以发送给 Gemini", true);
+  if (["focus_cloud", "gemini"].includes(renderer) && !consent) {
+    showToast("使用AI卡通化前，请先确认本次照片可以发送给所选云端模型", true);
     return;
   }
   button.disabled = true;
-  button.textContent = renderer === "gemini" ? "AI正在画它…" : "正在本机生成…";
+  button.textContent = renderer === "local" ? "正在本机生成…" : "AI正在画它…";
   try {
     const profile = await api("/api/pet/custom/create", {
       name,

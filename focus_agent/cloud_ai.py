@@ -1,7 +1,8 @@
-"""Optional user-owned cloud AI connections.
+"""Focus Cloud plus optional user-owned AI connections.
 
-No shared API key is embedded in Focus. On Windows, keys saved from the
-local UI are encrypted with DPAPI and can only be decrypted by the same user.
+End users can sign in to a Focus Cloud deployment and use its managed free
+quota without obtaining a provider API key. Optional OpenRouter/Gemini keys
+remain available for advanced self-hosted use and are protected with DPAPI.
 """
 
 from __future__ import annotations
@@ -12,11 +13,12 @@ import json
 import os
 import re
 import urllib.error
+import urllib.parse
 import urllib.request
 from ctypes import wintypes
 from pathlib import Path
 
-from .paths import user_data_root
+from .paths import resource_root, user_data_root
 
 
 OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
@@ -24,9 +26,27 @@ GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{mode
 DEFAULT_OPENROUTER_MODEL = "openrouter/free"
 DEFAULT_GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image"
 
+
+def _packaged_focus_cloud_url() -> str:
+    configured = os.environ.get("FOCUS_CLOUD_URL", "").strip()
+    if configured:
+        return configured.rstrip("/")
+    try:
+        payload = json.loads(
+            (resource_root() / "data" / "focus_cloud.json").read_text(encoding="utf-8")
+        )
+        return str(payload.get("base_url", "")).strip().rstrip("/")
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        return ""
+
+
 DEFAULT_SETTINGS = {
-    "schema_version": 1,
+    "schema_version": 2,
     "text_provider": "local",
+    "focus_cloud_url": _packaged_focus_cloud_url(),
+    "focus_account_token": "",
+    "focus_account_name": "",
+    "focus_account_expires": 0,
     "openrouter_model": DEFAULT_OPENROUTER_MODEL,
     "openrouter_key": "",
     "pet_renderer": "local",
@@ -101,9 +121,12 @@ class CloudAISettingsStore:
     def _load(self) -> dict:
         try:
             payload = json.loads(self.path.read_text(encoding="utf-8"))
-            if payload.get("schema_version") != 1:
+            if payload.get("schema_version") not in {1, 2}:
                 raise ValueError
-            return {**DEFAULT_SETTINGS, **payload}
+            migrated = {**DEFAULT_SETTINGS, **payload, "schema_version": 2}
+            if not migrated.get("focus_cloud_url"):
+                migrated["focus_cloud_url"] = _packaged_focus_cloud_url()
+            return migrated
         except (OSError, ValueError, TypeError, json.JSONDecodeError):
             return dict(DEFAULT_SETTINGS)
 
@@ -126,8 +149,16 @@ class CloudAISettingsStore:
         return model
 
     def snapshot(self) -> dict:
+        account_token = _unseal(str(self.data.get("focus_account_token", "")))
         return {
             "text_provider": self.data["text_provider"],
+            "focus_cloud_url": self.data.get("focus_cloud_url", ""),
+            "focus_cloud_available": bool(self.data.get("focus_cloud_url")),
+            "focus_account": {
+                "signed_in": bool(account_token),
+                "username": str(self.data.get("focus_account_name", "")),
+                "expires_at": int(self.data.get("focus_account_expires", 0) or 0),
+            },
             "openrouter_model": self.data["openrouter_model"],
             "openrouter_configured": bool(self.data.get("openrouter_key")),
             "pet_renderer": self.data["pet_renderer"],
@@ -138,10 +169,10 @@ class CloudAISettingsStore:
 
     def update(self, payload: dict) -> dict:
         text_provider = str(payload.get("text_provider", self.data["text_provider"])).strip()
-        if text_provider not in {"local", "openrouter", "ollama"}:
+        if text_provider not in {"local", "focus_cloud", "openrouter", "ollama"}:
             raise ValueError("不支持这种任务解析方式")
         pet_renderer = str(payload.get("pet_renderer", self.data["pet_renderer"])).strip()
-        if pet_renderer not in {"local", "gemini"}:
+        if pet_renderer not in {"local", "focus_cloud", "gemini"}:
             raise ValueError("不支持这种宠物生成方式")
         self.data["text_provider"] = text_provider
         self.data["pet_renderer"] = pet_renderer
@@ -153,6 +184,8 @@ class CloudAISettingsStore:
             payload.get("gemini_image_model", self.data["gemini_image_model"]),
             DEFAULT_GEMINI_IMAGE_MODEL,
         )
+        if "focus_cloud_url" in payload:
+            self.data["focus_cloud_url"] = self._cloud_url(payload.get("focus_cloud_url"))
         if payload.get("clear_openrouter_key"):
             self.data["openrouter_key"] = ""
         elif str(payload.get("openrouter_api_key", "")).strip():
@@ -170,6 +203,46 @@ class CloudAISettingsStore:
     def gemini_key(self) -> str:
         return _unseal(str(self.data.get("gemini_key", "")))
 
+    @staticmethod
+    def _cloud_url(value: object) -> str:
+        url = str(value or "").strip().rstrip("/")
+        if not url:
+            return ""
+        parsed = urllib.parse.urlparse(url)
+        local = parsed.hostname in {"127.0.0.1", "localhost"}
+        if parsed.scheme not in ({"http", "https"} if local else {"https"}) or not parsed.netloc:
+            raise ValueError("Focus Cloud 地址必须是 HTTPS；本机调试可使用 localhost")
+        return url
+
+    def focus_cloud_url(self) -> str:
+        return str(self.data.get("focus_cloud_url", "")).strip().rstrip("/")
+
+    def focus_account_token(self) -> str:
+        return _unseal(str(self.data.get("focus_account_token", "")))
+
+    def save_focus_account(self, payload: dict) -> dict:
+        token = str(payload.get("token", "")).strip()
+        username = str(payload.get("username", "")).strip()[:24]
+        if not token or not username:
+            raise ValueError("Focus账户返回不完整")
+        self.data["focus_account_token"] = _seal(token)
+        self.data["focus_account_name"] = username
+        self.data["focus_account_expires"] = int(payload.get("expires_at", 0) or 0)
+        self.data["text_provider"] = "focus_cloud"
+        self._save()
+        return self.snapshot()
+
+    def clear_focus_account(self) -> dict:
+        self.data["focus_account_token"] = ""
+        self.data["focus_account_name"] = ""
+        self.data["focus_account_expires"] = 0
+        if self.data.get("text_provider") == "focus_cloud":
+            self.data["text_provider"] = "local"
+        if self.data.get("pet_renderer") == "focus_cloud":
+            self.data["pet_renderer"] = "local"
+        self._save()
+        return self.snapshot()
+
 
 def _provider_error(exc: urllib.error.HTTPError, label: str) -> ValueError:
     detail = ""
@@ -180,6 +253,117 @@ def _provider_error(exc: urllib.error.HTTPError, label: str) -> ValueError:
         pass
     message = detail or f"HTTP {exc.code}"
     return ValueError(f"{label}调用失败：{message}")
+
+
+class FocusCloudClient:
+    """Account-backed AI client; no provider key is exposed to end users."""
+
+    def __init__(self, settings: CloudAISettingsStore):
+        self.settings = settings
+
+    def _request(
+        self,
+        path: str,
+        payload: dict | None = None,
+        *,
+        authenticated: bool = False,
+        timeout_seconds: float = 60,
+    ) -> dict:
+        base_url = self.settings.focus_cloud_url()
+        if not base_url:
+            raise ValueError("Focus Cloud尚未由项目维护者部署；本地场景库仍可正常使用")
+        headers = {"Content-Type": "application/json"}
+        if authenticated:
+            token = self.settings.focus_account_token()
+            if not token:
+                raise ValueError("请先登录Focus账户")
+            headers["Authorization"] = f"Bearer {token}"
+        request = urllib.request.Request(
+            f"{base_url}{path}",
+            data=None if payload is None else json.dumps(
+                payload, ensure_ascii=False
+            ).encode("utf-8"),
+            headers=headers,
+            method="GET" if payload is None else "POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
+                result = json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            detail = ""
+            try:
+                detail = str(json.loads(exc.read().decode("utf-8")).get("error", ""))
+            except (OSError, ValueError, TypeError, json.JSONDecodeError):
+                pass
+            raise ValueError(detail[:160] or f"Focus Cloud调用失败：HTTP {exc.code}") from None
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            raise ValueError(f"Focus Cloud暂时不可用：{str(exc)[:120]}") from None
+        if not isinstance(result, dict) or not result.get("ok"):
+            raise ValueError(str(result.get("error", "Focus Cloud返回异常"))[:160])
+        data = result.get("data")
+        if not isinstance(data, dict):
+            raise ValueError("Focus Cloud返回内容不完整")
+        return data
+
+    def register(self, username: str, password: str) -> dict:
+        data = self._request(
+            "/v1/auth/register",
+            {"username": username, "password": password},
+            timeout_seconds=30,
+        )
+        return self.settings.save_focus_account(data)
+
+    def login(self, username: str, password: str) -> dict:
+        data = self._request(
+            "/v1/auth/login",
+            {"username": username, "password": password},
+            timeout_seconds=30,
+        )
+        return self.settings.save_focus_account(data)
+
+    def logout(self) -> dict:
+        try:
+            if self.settings.focus_account_token():
+                self._request(
+                    "/v1/auth/logout",
+                    {},
+                    authenticated=True,
+                    timeout_seconds=15,
+                )
+        except ValueError:
+            # Local logout must remain available while the gateway is offline.
+            pass
+        return self.settings.clear_focus_account()
+
+    def chat(
+        self,
+        *,
+        messages: list[dict],
+        timeout_seconds: float = 60,
+        **_kwargs,
+    ) -> str:
+        data = self._request(
+            "/v1/chat",
+            {"messages": messages},
+            authenticated=True,
+            timeout_seconds=timeout_seconds,
+        )
+        text = str(data.get("text", "")).strip()
+        if not text:
+            raise ValueError("Focus Cloud没有返回可用文本")
+        return text
+
+    def cartoonize(self, image_data: str, *, timeout_seconds: float = 120) -> str:
+        data = self._request(
+            "/v1/pet",
+            {"image": image_data},
+            authenticated=True,
+            timeout_seconds=timeout_seconds,
+        )
+        image = str(data.get("image", "")).strip()
+        if not image.startswith("data:image/"):
+            raise ValueError("Focus Cloud没有返回可用图片")
+        return image
 
 
 class OpenRouterClient:

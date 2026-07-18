@@ -1,5 +1,5 @@
 param(
-    [string]$Version = '4.0.0',
+    [string]$Version = '4.1.0',
     [switch]$IncludeLocalMusic,
     [switch]$PortableZip,
     [switch]$SkipInstaller
@@ -44,7 +44,26 @@ $ExtensionTarget = Join-Path $PortableRoot 'browser_extension'
 if (Test-Path -LiteralPath $ExtensionTarget) {
     Remove-Item -LiteralPath $ExtensionTarget -Recurse -Force
 }
-Copy-Item -LiteralPath (Join-Path $ProjectRoot 'browser_extension') -Destination $ExtensionTarget -Recurse
+New-Item -ItemType Directory -Path $ExtensionTarget -Force | Out-Null
+foreach ($name in @('manifest.json','background.js','bridge.js','popup.html','popup.css','popup.js')) {
+    Copy-Item -LiteralPath (Join-Path $ProjectRoot "browser_extension_standalone\$name") `
+        -Destination (Join-Path $ExtensionTarget $name)
+}
+Copy-Item -LiteralPath (Join-Path $ProjectRoot 'web_standalone\index.html') `
+    -Destination (Join-Path $ExtensionTarget 'focus.html')
+foreach ($name in @('styles.css','app.js','manifest.webmanifest')) {
+    Copy-Item -LiteralPath (Join-Path $ProjectRoot "web_standalone\$name") `
+        -Destination (Join-Path $ExtensionTarget $name)
+}
+$ExtensionMedia = Join-Path $ExtensionTarget 'media'
+New-Item -ItemType Directory -Path (Join-Path $ExtensionMedia 'sounds') -Force | Out-Null
+Get-ChildItem -LiteralPath (Join-Path $ProjectRoot 'pictures') -Filter '*.png' -File |
+    ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $ExtensionMedia $_.Name) }
+Get-ChildItem -LiteralPath (Join-Path $ProjectRoot 'assets\soundscapes') -Filter '*.ogg' -File |
+    ForEach-Object {
+        $soundTarget = Join-Path (Join-Path $ExtensionMedia 'sounds') $_.Name
+        Copy-Item -LiteralPath $_.FullName -Destination $soundTarget
+    }
 Copy-Item -LiteralPath (Join-Path $ProjectRoot 'README.md') -Destination (Join-Path $PortableRoot 'README.md') -Force
 
 New-Item -ItemType Directory -Path $ReleaseRoot -Force | Out-Null

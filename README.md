@@ -1,71 +1,107 @@
 # Focus
 
-Focus 是一款面向学生和上班族的专注工具：输入目标后自动推荐本轮可能使用的软件和网站，用白名单减少误提醒，并通过宠物成长、幽默提醒和自然声景记录长期专注。
+Focus 是一款面向学生和上班族的专注 Agent：输入本轮目标后，它会推荐可能使用的软件与网站，使用浏览器白名单减少误提醒，并通过宠物成长、幽默反馈和自然声景积累长期专注记录。
 
 ![Focus 小猫专注场景](pictures/focus.png)
 
-> 图片素材来源：YouTube 博主 **mocha.**
+> 图片素材来源：YouTube 博主 **mocha.**；音频作者显示在软件的声音卡片中。
 
-## 先看清：完整监督需要什么
+## 开始前只要理解一件事
 
-不是 EXE 和网页都必须安装扩展，实际关系如下：
+Focus 的网页与 Windows EXE **都使用同一个 Focus 浏览器扩展**。
 
-| 使用方式 | 是否需要浏览器扩展 | 能监督什么 | 适合场景 |
-|---|---|---|---|
-| Windows EXE | 监督软件时不需要；精确识别域名时需要配套桥接扩展 | Windows 前台软件、进程、窗口标题；连接桥接后可识别活动域名 | 同时使用 Office、VS Code、文件夹和浏览器 |
-| 浏览器完整版本 | **需要**安装 Focus 扩展 | 当前活动标签页域名、网站白名单、跨标签页计时 | 主要在 Edge/Chrome 学习或工作 |
-| GitHub Pages 网页体验 | 不需要扩展，但能力受限 | 当前页面是否被隐藏，不能读取其他标签页或桌面软件 | 立即体验计时、声音和宠物养成 |
+普通网页不能仅靠一个“同意授权”按钮读取其他标签页地址，也不能监控 Windows 本地程序。浏览器对此有明确的安全隔离。因此：
 
-浏览器的安全机制禁止普通网页读取其他标签页地址。因此：
+- Focus 扩展负责识别当前活动标签页的域名和标题；
+- Windows EXE 额外负责识别当前前台软件、窗口标题和本地文件工具；
+- GitHub 网页版负责目标、白名单、计时、声音和宠物界面；
+- 扩展只传递当前标签页，不读取网页正文，不保存完整浏览历史。
 
-- 想监督桌面软件：使用 Windows EXE。
-- 想准确判断当前浏览的网站：安装 Focus 浏览器扩展。
-- 只想体验计时和养成：直接打开网页即可。
+扩展安装一次后，同时服务网页版和 EXE，不再需要分别添加“桥接文件”。
 
-## 下载与使用
+## 选择使用入口
 
-### Windows EXE
+### 1. Windows EXE
 
-[下载 Focus-Windows-Setup.exe](https://github.com/miaoooow/Focus/releases/latest/download/Focus-Windows-Setup.exe)
+[下载 Focus Windows 安装包](https://github.com/miaoooow/Focus/releases/latest/download/Focus-Windows-Setup.exe)
 
-- 一键安装，安装时可以选择路径。
-- 以独立软件窗口运行，不要求安装 Python、Ollama 或模型。
-- 默认使用本地场景数据库；也可在软件内选择 OpenRouter、Ollama 或 Gemini。
-- 默认领养“奶牛警长”。
-- 安装目录内附带 `browser_extension`。只有需要精确识别浏览器域名时，才需要在 Edge/Chrome 中加载它。
+- Windows 10/11 x64；
+- 一键安装，可选择安装路径；
+- 以独立软件窗口运行，不打开普通浏览器页面；
+- 可监督本地软件与窗口；
+- 启动专注前需要已启用 Focus 扩展。
 
-连接网址桥接：
+### 2. Focus 浏览器扩展
 
-1. Edge 打开 `edge://extensions`，Chrome 打开 `chrome://extensions`。
-2. 开启“开发人员模式”。
-3. 点击“加载解压缩的扩展”。
-4. 选择 Focus 安装目录中的 `browser_extension`。
-5. 回到 Focus，确认“网址识别桥接”已连接。
+[下载 Focus 浏览器扩展](https://github.com/miaoooow/Focus/releases/latest/download/Focus-Browser-Extension.zip)
 
-Windows 版支持 Windows 10/11 x64。安装包没有代码签名时，SmartScreen 可能显示提示；可使用 Release 中的 `SHA256.txt` 核验文件。
+当前仓库提供的是商店审核前的开发包：
 
-### 浏览器完整版本
+1. 解压 ZIP；
+2. 在 Edge 打开 `edge://extensions`，或在 Chrome 打开 `chrome://extensions`；
+3. 开启“开发人员模式”；
+4. 选择“加载解压缩的扩展”；
+5. 以后网页和 EXE 会自动检测该扩展。
 
-[下载 Focus-Browser-Extension.zip](https://github.com/miaoooow/Focus/releases/latest/download/Focus-Browser-Extension.zip)
+浏览器不允许网站静默安装扩展。若要做到真正的一键安装，必须先把同一份扩展提交 Chrome Web Store / Microsoft Edge Add-ons 审核；审核通过后 README 将替换为商店链接。
 
-1. 解压 ZIP。
-2. 打开 Edge/Chrome 扩展管理页并开启“开发人员模式”。
-3. 点击“加载解压缩的扩展”，选择解压后的文件夹。
-4. 点击工具栏中的 Focus，再选择“打开完整专注台”。
-
-完整专注台负责目标、白名单、声音、宠物与成长；扩展后台负责活动标签页域名和计时。它不依赖 Windows EXE。
-
-### 网页体验
+### 3. 网页版
 
 [打开 Focus 网页版](https://miaoooow.github.io/Focus/)
 
-也可以[下载 Focus-Web.zip](https://github.com/miaoooow/Focus/releases/latest/download/Focus-Web.zip)离线打开。
+也可[下载离线网页包](https://github.com/miaoooow/Focus/releases/latest/download/Focus-Web.zip)。
 
-网页包含目标建议、倒计时、自然声景、宠物领养和成长记录。它只能判断当前 Focus 页面是否被隐藏，不能准确监督其他标签页；这是浏览器权限限制，不是白名单故障。
+网页版不再提供“能力受限但假装监督”的模式。未连接扩展时可以浏览界面和准备目标，但不能开始白名单监督。
+
+### 校验下载文件
+
+[下载 SHA-256 校验文件](https://github.com/miaoooow/Focus/releases/latest/download/SHA256.txt)
+
+```powershell
+Get-FileHash .\Focus-Windows-Setup.exe -Algorithm SHA256
+```
+
+## 为什么以前需要 API Key
+
+OpenRouter、Gemini 等托管模型需要识别调用者、统计额度并防止滥用，所以即使模型标注“免费”，直接调用服务商通常仍需要 API Key。把共享 Key 写进网页、扩展或 EXE 会被任何人提取并盗用，因此 Focus 不会这么做。
+
+Focus 4.1 增加了更适合普通用户的方案：
+
+```text
+用户注册 / 登录 Focus
+        ↓
+Focus Cloud 做账户、限流和隐私校验
+        ↓
+Cloudflare Workers AI 免费额度
+        ↓
+返回任务场景或宠物卡通图
+```
+
+最终用户只使用 Focus 账户，不需要申请 OpenRouter、Gemini 或 Cloudflare Key。免费额度用完或网络不可用时，任务规划会自动回退本地场景库，不影响计时与监督。
+
+注意：仓库已经包含完整的 Focus Cloud 可部署服务，但公共实例需要项目维护者先在自己的 Cloudflare 账户部署一次并填入服务地址。部署说明见 [focus_cloud/README.md](focus_cloud/README.md)。这是发布者的一次性配置，不是最终用户的安装步骤。
+
+高级用户仍可选择：
+
+- 本地场景库：默认、最快、离线；
+- Ollama：完全本地，但需要下载模型；
+- OpenRouter / Gemini：使用自己的 Key 和额度。
+
+## 账户功能
+
+网页和 EXE 均已接入相同的注册、登录和退出流程。Focus Cloud 负责：
+
+- 用户名与密码登录；
+- 30 天登录会话；
+- 每日免费 AI 调用限额；
+- 服务端模型凭据隔离；
+- 文本任务规划与宠物照片卡通化。
+
+密码经随机盐和 PBKDF2-SHA256 派生后保存；登录令牌在数据库中只保存 SHA-256 摘要。专注历史、白名单、宠物成长和音频偏好仍默认留在用户设备，不会因为登录自动上传。
 
 ## 主要功能
 
-### 目标与白名单
+### 目标解析与智能白名单
 
 推荐使用“时长 + 具体成果”的写法：
 
@@ -75,91 +111,64 @@ Windows 版支持 Windows 10/11 x64。安装包没有代码签名时，SmartScre
 25分钟修改简历，禁止刷B站和微博
 ```
 
-Focus 默认从本地场景和软件关系数据库中推荐白名单，不联网也能运行。Windows 版可选 OpenRouter 或 Ollama 增强语义解析；服务不可用时自动回退本地规则。
+Focus 优先给出本地即时建议；登录 Focus 后，免费模型会进一步补充任务场景、必要工具和常用域名。监督循环仍使用确定性规则，不在每次窗口切换时调用模型。
 
-### 自定义宠物动画
+### 一个扩展，同时连接网页和 EXE
 
-- Windows 本机模式：从照片生成待机、害羞、扭身和生气四种动作，并生成幼年、少年、成年和守护者四段成长形态。
-- Windows AI 模式：用户明确同意后，Gemini 先根据照片生成同一角色的 2×2 四动作设定图；Focus 再在本机切分动作、生成透明素材和成长阶段。
-- 网页/扩展模式：浏览器在本机将照片转成轻量卡通动作组，不上传照片。
-- 运行时会按场景切换动作：成功时害羞庆祝，轻度走神时摇头扭身，连续走神时生气提醒。
-- 自定义宠物可以领养、切换和删除。
+- 在 GitHub 网页版中，内容脚本建立受限消息桥，只允许开始、暂停、继续、停止、读取当前域名等固定动作；
+- 在 EXE 中，扩展把当前活动域名发送给 `127.0.0.1` 的 Focus 本地服务；
+- 白名单按域名后缀匹配，例如加入 `github.com` 会允许其子域名；
+- 只有在白名单外持续超过宽限时间才扣分并提醒。
 
-AI 图片生成不是首次使用的必要步骤，也不内置共享 Key。Windows 会使用当前用户的 DPAPI 加密保存个人 Key；前端接口不会返回明文。
+### 自定义宠物
 
-### 声音花园
+- 本机模式：照片不上传，在浏览器或 EXE 本地生成轻量动作组；
+- Focus Cloud 模式：用户确认后发送单张宠物照片，免费图片模型保留毛色、斑纹和物种特征并生成卡通底图；
+- Gemini 模式：保留为高级自带 Key 选项；
+- 成功时害羞庆祝，轻度走神时摇头扭身，连续走神时生气推杯；
+- 可命名、领养、切换和删除自定义宠物。
 
-EXE、浏览器扩展和网页版使用同一组自然声景：
+### 声音花园与成长
+
+EXE、扩展完整专注台和网页版共用四类压缩自然声景：
 
 | 分类 | 显示作者 |
 |---|---|
 | 雨幕、溪流、鸟鸣 | The Nature Sounds SocietyJapan |
 | 海岸 | Echoes of Nature |
 
-发布音频由本地 `Musics` 目录中的原始文件压缩生成，转换为 48 kbps Opus，总计约 7 MB。原始大文件和歌词不会进入安装包或网页包，作者信息会显示在界面中。
+音频由本地 `Musics` 原文件压缩为低码率 Opus，总计约 7 MB。专注会累计分钟、猫币、经验、连续天数、成长阶段和徽章。
 
-重新生成压缩声音：
+## 隐私边界
 
-```powershell
-.\.venv\Scripts\python.exe .\scripts\build_soundscapes.py
-```
-
-### 奖励与提醒
-
-- 累计专注分钟、猫币、经验、连续天数和徽章。
-- 白名单外停留超过宽限时间才提醒，避免短暂切换造成误扣。
-- 关联软件可在本轮放行，也可写入本地关系数据库供以后自动推荐。
-- 提醒语句来自本地分类数据库，会结合当前页面或软件生成简短幽默反馈。
-
-## AI 连接说明
-
-Windows 版可以选择：
-
-- **本地场景库**：默认、最快、完全离线。
-- **OpenRouter**：使用用户自己的 Key，默认免费路由，不下载模型。
-- **Ollama**：适合已安装本地模型、希望数据不离开电脑的用户。
-- **Gemini 图片模型**：只用于用户主动选择的宠物动作设定图生成。
-
-OpenRouter/Gemini 的免费额度和可用模型由服务商决定，Focus 不承诺永久免费，也不会隐藏潜在费用。
-
-## 隐私
-
-- 不截屏、不录屏、不读取键盘输入。
-- Windows 版只读取当前前台进程和窗口标题。
-- 浏览器扩展只读取当前活动标签页的域名和标题，不读取网页正文。
-- 普通网页版不能读取其他标签页。
-- 专注历史、白名单、宠物和成长记录默认保存在用户设备。
-- 只有用户主动启用云端 AI 时，目标或宠物照片才会发送给对应服务商。
-
-## 素材来源
-
-- 图片素材：YouTube 博主 **mocha.**
-- 音频来源：界面中显示的作者。
-
-素材署名仅用于说明来源，不改变原作者享有的权利。公开分发或二次使用前，应确认相应授权范围。
+- 不截屏、不录屏、不读取键盘输入；
+- 扩展只读取当前活动标签页的域名和标题；
+- Windows EXE 只读取当前前台进程和窗口标题；
+- 宠物照片只有在用户明确选择云端模式并确认后才上传；
+- 普通网页不能监控 Windows 本地程序，必须由 EXE 完成；
+- 服务端 Key 不进入客户端；可选个人 Key 在 Windows 上由 DPAPI 加密。
 
 ## 项目结构
 
 ```text
 Focus/
 ├─ app.py                         Windows 入口
-├─ Focus.spec                     Windows 打包资源清单
-├─ focus_agent/                   监测、解析、AI、宠物和本地服务
-├─ assets/branding/               Focus 图标
-├─ assets/soundscapes/            从 Musics 压缩生成的 Opus 声音
-├─ assets/cat-story-skins/        内置宠物成长素材
-├─ browser_extension/             Windows 网址桥接
-├─ browser_extension_standalone/  浏览器完整版本后台与工具栏
+├─ Focus.spec                     PyInstaller 资源清单
+├─ focus_agent/                   监测、规划、账户客户端、宠物与本地服务
+├─ focus_cloud/                   账户 + 免费模型网关（Workers / D1 / Workers AI）
+├─ browser_extension_standalone/  网页与 EXE 共用的唯一扩展源码
 ├─ web/                           Windows 独立窗口界面
-├─ web_standalone/                网页与浏览器完整专注台
-├─ data/                          场景、软件关系和提醒数据库
+├─ web_standalone/                GitHub Pages 网页界面
+├─ data/                          场景、关系、幽默提醒与云端公开配置
+├─ assets/                        图标、成长素材与压缩声音
 ├─ pictures/                      界面图片素材
-├─ installer/Focus.iss            Windows 安装器配置
-├─ scripts/                       音频、测试与三版本构建脚本
-└─ tests/                         自动化回归测试
+├─ installer/Focus.iss            Windows 安装器
+├─ scripts/                       测试、文档、音频与发布脚本
+├─ tests/                         自动化回归测试
+└─ docs/Focus_宣传视频制作脚本.md  宣传视频分镜与制作清单
 ```
 
-`Musics`、`.runtime`、`.venv`、构建缓存和设计文档不会进入用户发布包。
+`Musics` 原文件、虚拟环境、构建缓存、Release 二进制和 DOCX 设计文档不会提交到仓库。
 
 ## 从源码运行
 
@@ -178,10 +187,10 @@ $env:PYTHONDONTWRITEBYTECODE='1'
 .\.venv\Scripts\python.exe -B -m unittest discover -s tests -v
 ```
 
-构建 4.0.0 三端发布包：
+构建 4.1.0 发布包：
 
 ```powershell
-.\scripts\build_public_editions.ps1 -Version 4.0.0
+.\scripts\build_public_editions.ps1 -Version 4.1.0
 ```
 
 输出：
@@ -193,4 +202,11 @@ Focus-Web.zip
 SHA256.txt
 ```
 
-GitHub Pages 由 `.github/workflows/pages.yml` 在 `main` 更新后自动发布。
+GitHub Pages 由 `.github/workflows/pages.yml` 在 `main` 更新后自动部署。Release 必须上传上述四个同名文件，README 的 `releases/latest/download/...` 才会保持长期有效。
+
+## 素材来源
+
+- 图片素材：YouTube 博主 **mocha.**
+- 音频来源：界面中显示的作者。
+
+署名用于说明素材来源，不代表获得二次分发授权。公开发布前，项目维护者仍应确认图片和音频的授权范围。

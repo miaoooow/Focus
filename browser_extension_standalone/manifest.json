@@ -1,14 +1,24 @@
 {
   "manifest_version": 3,
   "name": "Focus · 浏览器版",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "description": "完整专注台：目标场景解析、域名白名单、跨标签页监督、小猫养成与声音花园。",
   "permissions": ["storage", "tabs", "alarms", "notifications"],
+  "host_permissions": ["http://127.0.0.1/*"],
   "background": {
     "service_worker": "background.js"
   },
   "action": {
     "default_title": "Focus",
     "default_popup": "popup.html"
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://miaoooow.github.io/Focus/*"
+      ],
+      "js": ["bridge.js"],
+      "run_at": "document_start"
+    }
+  ]
 }

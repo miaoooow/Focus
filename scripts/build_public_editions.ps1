@@ -1,5 +1,5 @@
 param(
-    [string]$Version = '4.0.0',
+    [string]$Version = '4.1.0',
     [bool]$IncludeLocalMusic = $false,
     [switch]$SkipWindowsInstaller
 )
@@ -14,6 +14,7 @@ $BrowserZip = Join-Path $ReleaseRoot 'Focus-Browser-Extension.zip'
 $WebZip = Join-Path $ReleaseRoot 'Focus-Web.zip'
 $WindowsInstaller = Join-Path $ReleaseRoot 'Focus-Windows-Setup.exe'
 $ChecksumFile = Join-Path $ReleaseRoot 'SHA256.txt'
+$CloudConfig = Join-Path $ProjectRoot 'data\focus_cloud.json'
 
 Set-Location $ProjectRoot
 New-Item -ItemType Directory -Path $ReleaseRoot -Force | Out-Null
@@ -36,7 +37,7 @@ if (-not $SkipWindowsInstaller) {
     }
 }
 
-$BrowserFiles = @('manifest.json','background.js','popup.html','popup.css','popup.js')
+$BrowserFiles = @('manifest.json','background.js','bridge.js','popup.html','popup.css','popup.js')
 foreach ($name in $BrowserFiles) {
     Copy-Item -LiteralPath (Join-Path $ProjectRoot "browser_extension_standalone\$name") `
         -Destination (Join-Path $BrowserStage $name)
@@ -68,6 +69,30 @@ $WebFiles = @('index.html','styles.css','app.js','manifest.webmanifest','sw.js')
 foreach ($name in $WebFiles) {
     Copy-Item -LiteralPath (Join-Path $ProjectRoot "web_standalone\$name") `
         -Destination (Join-Path $WebStage $name)
+}
+
+# A deployed Focus Cloud URL is a publisher setting, never an end-user file.
+# When configured, bake it into the offline web and extension consoles.
+if (Test-Path -LiteralPath $CloudConfig) {
+    $cloudUrl = [string]((Get-Content -LiteralPath $CloudConfig -Raw | ConvertFrom-Json).base_url)
+    $cloudUrl = $cloudUrl.Trim().TrimEnd('/')
+    if ($cloudUrl) {
+        if (-not $cloudUrl.StartsWith('https://')) {
+            throw 'Focus Cloud release URL must use HTTPS.'
+        }
+        $escapedCloudUrl = [Security.SecurityElement]::Escape($cloudUrl)
+        foreach ($htmlPath in @(
+            (Join-Path $BrowserStage 'focus.html'),
+            (Join-Path $WebStage 'index.html')
+        )) {
+            $html = Get-Content -LiteralPath $htmlPath -Raw
+            $html = $html.Replace(
+                '<meta name="focus-cloud-url" content="" />',
+                "<meta name=`"focus-cloud-url`" content=`"$escapedCloudUrl`" />"
+            )
+            Set-Content -LiteralPath $htmlPath -Value $html -Encoding utf8
+        }
+    }
 }
 $WebMedia = Join-Path $WebStage 'media'
 New-Item -ItemType Directory -Path $WebMedia -Force | Out-Null

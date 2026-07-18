@@ -1,7 +1,17 @@
 const $ = (selector) => document.querySelector(selector);
 const STORAGE_KEY = "focus-web-v1";
 const CIRCUMFERENCE = 2 * Math.PI * 96;
-const EXTENSION_MODE = Boolean(globalThis.chrome?.runtime?.id) && location.protocol === "chrome-extension:";
+const DIRECT_EXTENSION_PAGE =
+  Boolean(globalThis.chrome?.runtime?.id) && location.protocol === "chrome-extension:";
+const PAGE_MARKER = "focus-page-v1";
+const EXTENSION_MARKER = "focus-extension-v1";
+const CLOUD_URL = String(
+  document.querySelector('meta[name="focus-cloud-url"]')?.content || ""
+).trim().replace(/\/$/, "");
+const CLOUD_TOKEN_KEY = "focus-cloud-token";
+const CLOUD_USER_KEY = "focus-cloud-user";
+const extensionRequests = new Map();
+let extensionConnected = DIRECT_EXTENSION_PAGE;
 
 const scenes = [
   { name: "编程开发", keys: ["代码", "编程", "python", "java", "开发", "debug"], tools: ["代码编辑器", "终端", "项目文件"], domains: ["github.com", "stackoverflow.com", "docs.python.org"] },
@@ -36,10 +46,60 @@ let lastExtensionDriftCount = 0;
 let extensionRefreshBusy = false;
 let domainsTouched = false;
 let initialDomain = "";
+let cloudPlanTimer = 0;
+let cloudPlanRequest = 0;
 
-function extensionSend(type, payload) {
-  if (!EXTENSION_MODE) return Promise.resolve({ ok: false, error: "扩展未连接" });
-  return chrome.runtime.sendMessage({ type, payload });
+window.addEventListener("message", (event) => {
+  if (event.source !== window || event.origin !== window.location.origin) return;
+  const message = event.data;
+  if (!message || message.marker !== EXTENSION_MARKER) return;
+  if (message.type === "ready") {
+    extensionConnected = true;
+    return;
+  }
+  if (message.type === "response" && extensionRequests.has(message.requestId)) {
+    const request = extensionRequests.get(message.requestId);
+    extensionRequests.delete(message.requestId);
+    clearTimeout(request.timer);
+    request.resolve(message.result);
+  }
+});
+
+function extensionSend(type, payload = {}) {
+  if (DIRECT_EXTENSION_PAGE) return chrome.runtime.sendMessage({ type, payload });
+  return new Promise((resolve) => {
+    const requestId = `${Date.now()}-${crypto.getRandomValues(new Uint32Array(1))[0]}`;
+    const timer = setTimeout(() => {
+      extensionRequests.delete(requestId);
+      resolve({ ok: false, error: "Focus扩展未连接" });
+    }, 1600);
+    extensionRequests.set(requestId, { resolve, timer });
+    window.postMessage({ marker: PAGE_MARKER, type, payload, requestId }, window.location.origin);
+  });
+}
+
+async function detectExtension() {
+  const result = await extensionSend("ping");
+  extensionConnected = Boolean(result?.ok);
+  return extensionConnected;
+}
+
+function cloudToken() {
+  return localStorage.getItem(CLOUD_TOKEN_KEY) || "";
+}
+
+async function cloudApi(path, payload = null, authenticated = true) {
+  if (!CLOUD_URL) throw new Error("Focus Cloud尚未部署，当前可继续使用本地场景推荐");
+  const headers = { "Content-Type": "application/json" };
+  if (authenticated && cloudToken()) headers.Authorization = `Bearer ${cloudToken()}`;
+  const response = await fetch(`${CLOUD_URL}${path}`, {
+    method: payload === null ? "GET" : "POST",
+    headers,
+    body: payload === null ? undefined : JSON.stringify(payload),
+  });
+  const result = await response.json().catch(() => ({ ok: false, error: "Focus Cloud返回异常" }));
+  if (!response.ok || !result.ok) throw new Error(result.error || "Focus Cloud请求失败");
+  return result.data;
 }
 
 function normalizeDomain(value) {
@@ -154,10 +214,40 @@ function renderPlan() {
   const plan = parseGoal(goal);
   if (!domainsTouched) setAllowedDomains([initialDomain, ...plan.domains]);
   $("#plan-result").innerHTML = `
-    <p>识别为 <b>${plan.names.join(" + ")}</b>。${EXTENSION_MODE ? "扩展会按下方域名监督当前标签页；建议准备：" : "免安装网页不会读取其他软件；建议准备："}</p>
+    <p>识别为 <b>${plan.names.join(" + ")}</b>。${extensionConnected ? "扩展会按下方域名监督当前标签页；建议准备：" : "连接扩展后才能开始监督；建议准备："}</p>
     <div class="plan-chips">${plan.tools.map((tool) => `<span>${tool}</span>`).join("")}</div>
   `;
   renderDomainSuggestions(plan.domains);
+  clearTimeout(cloudPlanTimer);
+  if (cloudToken() && CLOUD_URL) {
+    cloudPlanTimer = setTimeout(() => enrichPlanWithCloud(goal), 850);
+  }
+}
+
+async function enrichPlanWithCloud(goal) {
+  const requestId = ++cloudPlanRequest;
+  try {
+    const plan = await cloudApi("/v1/plan", { goal });
+    if (requestId !== cloudPlanRequest || $("#goal").value.trim() !== goal) return;
+    const duration = String(plan.duration_minutes || "");
+    if (duration && ![...$("#duration").options].some((option) => option.value === duration)) {
+      const option = document.createElement("option");
+      option.value = duration;
+      option.textContent = `${duration} 分钟`;
+      $("#duration").append(option);
+    }
+    if (duration) $("#duration").value = duration;
+    if (!domainsTouched) setAllowedDomains([initialDomain, ...(plan.domains || [])]);
+    $("#plan-result").innerHTML = `
+      <p><b>Focus AI · ${plan.scene || "专注任务"}</b> 已按目标重新规划；建议准备：</p>
+      <div class="plan-chips">${(plan.tools || []).map((tool) => `<span>${tool}</span>`).join("")}</div>
+    `;
+    renderDomainSuggestions(plan.domains || []);
+  } catch (error) {
+    if (requestId === cloudPlanRequest) {
+      $("#form-message").textContent = `${error.message}；已保留本地推荐。`;
+    }
+  }
 }
 
 function formatTime(milliseconds) {
@@ -194,6 +284,10 @@ function catReact(kind, title, note) {
 }
 
 async function startSession() {
+  if (!extensionConnected) {
+    $("#form-message").textContent = "请先安装并启用 Focus 扩展；普通网页无法直接获得标签页监督权限。";
+    return;
+  }
   const goal = $("#goal").value.trim();
   if (!goal) {
     $("#form-message").textContent = `${petName()} 还不知道该盯哪件事，请先写下目标。`;
@@ -202,7 +296,7 @@ async function startSession() {
   }
   const durationMinutes = Number($("#duration").value);
   const durationSeconds = durationMinutes * 60;
-  if (EXTENSION_MODE) {
+  if (extensionConnected) {
     const domains = allowedDomains();
     if (!domains.length) {
       $("#form-message").textContent = "至少留一个本轮允许访问的网站；可以点“当前网站”或场景推荐。";
@@ -228,26 +322,11 @@ async function startSession() {
     render();
     return;
   }
-  state.session = {
-    goal,
-    tone: $("#tone").value,
-    durationSeconds,
-    startedAt: Date.now(),
-    endAt: Date.now() + durationSeconds * 1000,
-    remainingWhenPaused: null,
-    status: "running",
-    driftCount: 0,
-  };
-  $("#form-message").textContent = "";
-  saveState();
-  catReact("focus", `${petName()} 开工了`, "别追求完美，先把这一轮做完。");
-  beginTimer();
-  render();
 }
 
 async function pauseOrResume() {
   if (!state.session) return;
-  if (EXTENSION_MODE) {
+  if (extensionConnected) {
     const action = state.session.status === "running" ? "pause" : "resume";
     const result = await extensionSend(action);
     if (!result?.ok) {
@@ -283,7 +362,7 @@ async function pauseOrResume() {
 
 async function stopSession() {
   if (!state.session) return;
-  if (EXTENSION_MODE) {
+  if (extensionConnected) {
     const result = await extensionSend("stop");
     if (!result?.ok) {
       $("#form-message").textContent = result?.error || "扩展后台没有响应。";
@@ -322,7 +401,7 @@ function completeSession() {
 
 function beginTimer() {
   clearInterval(timerHandle);
-  if (EXTENSION_MODE) {
+  if (extensionConnected) {
     timerHandle = setInterval(syncExtensionState, 700);
     return;
   }
@@ -364,7 +443,7 @@ function applyExtensionState(remote) {
 }
 
 async function syncExtensionState() {
-  if (!EXTENSION_MODE || extensionRefreshBusy) return;
+  if (!extensionConnected || extensionRefreshBusy) return;
   extensionRefreshBusy = true;
   try {
     const result = await extensionSend("state");
@@ -553,17 +632,77 @@ function createPetActionSet(file) {
   });
 }
 
+function prepareCloudPetImage(file) {
+  return new Promise((resolve, reject) => {
+    if (!file?.type?.startsWith("image/")) {
+      reject(new Error("请选择 PNG、JPG 或 WebP 图片。"));
+      return;
+    }
+    if (file.size > 12 * 1024 * 1024) {
+      reject(new Error("照片超过 12 MB，请先压缩后再试。"));
+      return;
+    }
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      const limit = 1024;
+      const scale = Math.min(1, limit / Math.max(image.naturalWidth, image.naturalHeight));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(objectUrl);
+      resolve(canvas.toDataURL("image/jpeg", .84));
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("这张图片没能读出来，请换一张试试。"));
+    };
+    image.src = objectUrl;
+  });
+}
+
+function renderPetMode() {
+  const cloud = $("#pet-renderer-web").value === "focus_cloud";
+  $("#pet-cloud-consent-row").hidden = !cloud;
+  $("#pet-privacy").textContent = cloud
+    ? cloudToken()
+      ? "Focus AI 会在你确认后上传本次照片，生成卡通底图；四种动作与领养记录仍保存在本机。"
+      : "Focus AI 卡通化需要先登录 Focus；也可切回本机模式，不上传照片。"
+    : "本机模式会在当前浏览器生成四种动作并保存，不上传照片。";
+  if (!cloud) $("#pet-cloud-consent").checked = false;
+}
+
 async function previewPetPhoto() {
   const file = $("#pet-photo").files?.[0];
   if (!file) return;
+  const fileInput = $("#pet-photo");
+  const renderer = $("#pet-renderer-web").value;
+  fileInput.disabled = true;
   try {
-    const generated = await createPetActionSet(file);
+    let actionSource = file;
+    if (renderer === "focus_cloud") {
+      if (!CLOUD_URL) throw new Error("Focus Cloud尚未部署，请先使用本机模式。");
+      if (!cloudToken()) throw new Error("请先登录 Focus，再使用 AI 卡通化。");
+      if (!$("#pet-cloud-consent").checked) {
+        throw new Error("请先勾选照片上传确认；未确认时不会发送照片。");
+      }
+      $("#form-message").textContent = "Focus AI 正在保留毛色和斑纹并生成卡通底图…";
+      const sourceImage = await prepareCloudPetImage(file);
+      const result = await cloudApi("/v1/pet", { image: sourceImage });
+      actionSource = await (await fetch(result.image)).blob();
+    }
+    const generated = await createPetActionSet(actionSource);
     pendingPetImage = generated.portrait;
     pendingPetActions = generated.actions;
     $("#hero-pet-image").src = pendingPetImage;
-    $("#form-message").textContent = "已在本机生成待机、害羞、扭身和生气四种动作，保存后正式入住。";
+    $("#form-message").textContent = renderer === "focus_cloud"
+      ? "AI 卡通底图和四种动作已生成，保存后正式入住。"
+      : "已在本机生成待机、害羞、扭身和生气四种动作，保存后正式入住。";
   } catch (error) {
     $("#form-message").textContent = error.message;
+  } finally {
+    fileInput.disabled = false;
   }
 }
 
@@ -601,6 +740,69 @@ function resetPet() {
   renderGrowth();
 }
 
+function renderAccount() {
+  const username = localStorage.getItem(CLOUD_USER_KEY) || "";
+  const signedIn = Boolean(username && cloudToken());
+  $("#account-status").textContent = signedIn
+    ? `已登录 ${username} · 任务规划会优先使用Focus免费模型`
+    : CLOUD_URL
+      ? "尚未登录。注册或登录后无需再填写任何API Key。"
+      : "Focus Cloud尚未由项目维护者部署；本地规划仍可使用。";
+  $("#account-username").value = signedIn ? username : "";
+  $("#account-username").disabled = signedIn;
+  $("#account-password").hidden = signedIn;
+  $("#account-register").hidden = signedIn;
+  $("#account-login").hidden = signedIn;
+  $("#account-logout").hidden = !signedIn;
+  $("#account-button").textContent = signedIn ? `${username} · 免费AI` : "登录 / 注册";
+  renderPetMode();
+}
+
+async function submitAccount(action) {
+  const username = $("#account-username").value.trim();
+  const password = $("#account-password").value;
+  if (!username || password.length < 8) {
+    $("#account-status").textContent = "请输入用户名和至少8位密码。";
+    return;
+  }
+  const register = $("#account-register");
+  const login = $("#account-login");
+  register.disabled = true;
+  login.disabled = true;
+  try {
+    const account = await cloudApi(
+      `/v1/auth/${action}`,
+      { username, password },
+      false
+    );
+    localStorage.setItem(CLOUD_TOKEN_KEY, account.token);
+    localStorage.setItem(CLOUD_USER_KEY, account.username);
+    $("#account-password").value = "";
+    renderAccount();
+    $("#form-message").textContent =
+      action === "register" ? "账户创建成功，免费AI已连接。" : "登录成功，免费AI已连接。";
+    renderPlan();
+  } catch (error) {
+    $("#account-status").textContent = error.message;
+  } finally {
+    register.disabled = false;
+    login.disabled = false;
+  }
+}
+
+async function logoutAccount() {
+  try {
+    if (cloudToken() && CLOUD_URL) await cloudApi("/v1/auth/logout", {});
+  } catch {
+    // Local logout must still work if the network is unavailable.
+  }
+  localStorage.removeItem(CLOUD_TOKEN_KEY);
+  localStorage.removeItem(CLOUD_USER_KEY);
+  renderAccount();
+  $("#form-message").textContent = "已退出Focus账户，本地专注记录没有删除。";
+  renderPlan();
+}
+
 async function playSound(source, button) {
   stopSound();
   ambientAudio.src = new URL(source, location.href).href;
@@ -631,12 +833,18 @@ $("#use-current-domain").addEventListener("click", async () => {
   }
 });
 $("#pet-photo").addEventListener("change", previewPetPhoto);
+$("#pet-renderer-web").addEventListener("change", renderPetMode);
 $("#save-pet").addEventListener("click", savePet);
 $("#reset-pet").addEventListener("click", resetPet);
 document.querySelectorAll("[data-sound]").forEach((button) => {
   button.addEventListener("click", () => playSound(button.dataset.sound, button));
 });
 $("#sound-stop").addEventListener("click", stopSound);
+$("#account-button").addEventListener("click", () => $("#account-dialog").showModal());
+$("#account-close").addEventListener("click", () => $("#account-dialog").close());
+$("#account-register").addEventListener("click", () => submitAccount("register"));
+$("#account-login").addEventListener("click", () => submitAccount("login"));
+$("#account-logout").addEventListener("click", logoutAccount);
 $("#hero-pet-image").addEventListener("load", () => {
   $("#hero-pet-image").hidden = false;
   $("#hero-cat").style.display = "none";
@@ -647,7 +855,7 @@ $("#hero-pet-image").addEventListener("error", () => {
 });
 
 document.addEventListener("visibilitychange", () => {
-  if (EXTENSION_MODE) return;
+  if (extensionConnected) return;
   if (!state.session || state.session.status !== "running") return;
   if (document.hidden) {
     hiddenAt = Date.now();
@@ -658,11 +866,13 @@ document.addEventListener("visibilitychange", () => {
 });
 
 async function initialize() {
-  if (EXTENSION_MODE) {
+  await detectExtension();
+  if (extensionConnected) {
     document.title = "Focus · 完整专注台";
     $("#edition-label").textContent = "COMPLETE EXTENSION";
     $("#privacy-pill").textContent = "扩展已连接 · 仅本机";
     $("#download-link").textContent = "查看项目";
+    $("#download-link").href = "https://github.com/miaoooow/Focus";
     $("#hero-intro").textContent =
       "写下目标，扩展会把场景建议变成本轮网站白名单。即使切换标签页，Luna 也会在后台守住计时和奖励。";
     $("#use-current-domain").hidden = false;
@@ -688,16 +898,27 @@ async function initialize() {
     } else {
       $("#form-message").textContent = "扩展后台没有响应，请在扩展管理页重新加载 Focus。";
     }
-  } else if (state.session?.status === "running") {
-    if (remainingMs() <= 0) completeSession();
-    else beginTimer();
+    $("#start").disabled = false;
+    $("#start").innerHTML = "开始这一轮 <span>→</span>";
+  } else {
+    $("#edition-label").textContent = "WEB + EXTENSION";
+    $("#privacy-pill").textContent = "扩展未连接";
+    $("#download-link").textContent = "下载 Focus 扩展";
+    $("#download-link").href =
+      "https://github.com/miaoooow/Focus/releases/latest/download/Focus-Browser-Extension.zip";
+    $("#monitor-mode-note").textContent =
+      "必须先安装 Focus 扩展。浏览器不会允许普通网页仅靠一次授权读取其他标签页，这是安全边界。";
+    $("#event-line").textContent = "扩展未连接：计时、扣分和白名单监督尚未启动。";
+    $("#form-message").textContent =
+      "请先安装 Focus 扩展。正式商店版可一键安装；当前开发版需从 Release 下载。";
   }
+  renderAccount();
   renderPlan();
   render();
 }
 
 initialize();
 
-if (!EXTENSION_MODE && "serviceWorker" in navigator) {
+if (!DIRECT_EXTENSION_PAGE && "serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("sw.js"));
 }

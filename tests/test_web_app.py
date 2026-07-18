@@ -29,6 +29,9 @@ class FakeController:
     def cloud_ai_settings(self):
         return {
             "text_provider": "local",
+            "focus_cloud_url": "",
+            "focus_cloud_available": False,
+            "focus_account": {"signed_in": False, "username": "", "expires_at": 0},
             "openrouter_model": "openrouter/free",
             "openrouter_configured": False,
             "pet_renderer": "local",
@@ -122,8 +125,8 @@ class WebAppTests(unittest.TestCase):
             self.assertIn("media-src 'self'", csp)
             self.assertIn("/styles.css?v=9", html)
             self.assertIn("/app.js?v=9", html)
-            self.assertIn("AI 增强", html)
-            self.assertIn("连接你自己的模型", html)
+            self.assertIn("免费 AI 增强", html)
+            self.assertIn("登录后直接使用免费模型", html)
             self.assertIn("选择雨幕、溪流、海岸或鸟鸣，让小猫替你守住这一段节奏。", html)
             self.assertNotIn('class="sound-facts"', html)
             self.assertNotIn('id="sound-library-note"', html)

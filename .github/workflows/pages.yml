@@ -6,6 +6,7 @@ on:
     paths:
       - "web_standalone/**"
       - "assets/soundscapes/**"
+      - "pictures/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -44,6 +45,28 @@ jobs:
           cp web_standalone/manifest.webmanifest web_standalone/sw.js site/
           cp pictures/*.png site/media/
           cp assets/soundscapes/*.ogg site/media/sounds/
+      - name: Inject Focus Cloud public endpoint
+        env:
+          FOCUS_CLOUD_URL: ${{ vars.FOCUS_CLOUD_URL }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import html
+          import os
+          from pathlib import Path
+
+          url = os.environ.get("FOCUS_CLOUD_URL", "").strip().rstrip("/")
+          if url:
+              if not url.startswith("https://"):
+                  raise SystemExit("FOCUS_CLOUD_URL must use HTTPS")
+              page = Path("site/index.html")
+              text = page.read_text(encoding="utf-8")
+              text = text.replace(
+                  '<meta name="focus-cloud-url" content="" />',
+                  f'<meta name="focus-cloud-url" content="{html.escape(url, quote=True)}" />',
+              )
+              page.write_text(text, encoding="utf-8")
+          PY
       - name: Upload web edition
         uses: actions/upload-pages-artifact@v4
         with:

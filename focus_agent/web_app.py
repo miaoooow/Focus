@@ -127,8 +127,20 @@ class FocusRequestHandler(BaseHTTPRequestHandler):
         if origin not in allowed:
             raise PermissionError("此接口只能由 Focus 本机窗口调用")
 
+    def _require_extension_origin(self) -> None:
+        """Only the installed extension may report the active browser tab."""
+        origin = str(self.headers.get("Origin", "")).rstrip("/")
+        if origin and not origin.startswith("chrome-extension://"):
+            raise PermissionError("浏览器活动信息只能由 Focus 扩展上报")
+
     def do_GET(self) -> None:
         path = urlparse(self.path).path
+        if path in {"/api/state", "/api/ai/settings"}:
+            try:
+                self._require_local_ui_origin()
+            except PermissionError as exc:
+                self._json({"ok": False, "error": str(exc)}, HTTPStatus.FORBIDDEN)
+                return
         if path == "/api/state":
             self._json({"ok": True, "data": self.server.controller.status()})
             return
@@ -167,7 +179,9 @@ class FocusRequestHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         path = urlparse(self.path).path
         try:
-            if path in {"/api/ai/settings", "/api/pet/custom/create"}:
+            if path == "/api/browser/active":
+                self._require_extension_origin()
+            else:
                 self._require_local_ui_origin()
             payload = self._read_json(
                 8 * 1024 * 1024 if path == "/api/pet/custom/create" else 100_000
@@ -201,6 +215,18 @@ class FocusRequestHandler(BaseHTTPRequestHandler):
                 data = self.server.controller.delete_custom_pet(str(payload.get("id", "")))
             elif path == "/api/ai/settings":
                 data = self.server.controller.update_cloud_ai_settings(payload)
+            elif path == "/api/account/register":
+                data = self.server.controller.register_focus_account(
+                    str(payload.get("username", "")),
+                    str(payload.get("password", "")),
+                )
+            elif path == "/api/account/login":
+                data = self.server.controller.login_focus_account(
+                    str(payload.get("username", "")),
+                    str(payload.get("password", "")),
+                )
+            elif path == "/api/account/logout":
+                data = self.server.controller.logout_focus_account()
             elif path == "/api/session/start":
                 data = self.server.controller.start_session(payload)
             elif path == "/api/session/pause":

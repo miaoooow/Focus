@@ -50,6 +50,13 @@ class ControllerV2Tests(unittest.TestCase):
         self.assertTrue(all(plan["source"] == "本地场景库 · 即时规划" for plan in plans))
 
     def test_starting_session_learns_the_final_confirmed_whitelist(self):
+        self.controller.report_browser_tab(
+            {
+                "process_name": "chrome.exe",
+                "domain": "example.com",
+                "title": "Focus extension test",
+            }
+        )
         plan = self.controller.plan_goal("45分钟完成Python课程作业", use_ai=False)
         config = plan["config"]
         config["allowed_targets"] = [

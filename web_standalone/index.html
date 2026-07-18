@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#12392c" />
     <meta name="description" content="Focus 网页版：免安装的专注计时、任务规划与小猫养成。" />
+    <meta name="focus-cloud-url" content="" />
     <title>Focus · 网页版</title>
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="stylesheet" href="styles.css" />
@@ -22,8 +23,9 @@
         </span>
       </a>
       <div class="top-actions">
-        <span id="privacy-pill" class="privacy-pill">仅保存在浏览器</span>
-        <a id="download-link" href="https://github.com/miaoooow/Focus/releases/latest">下载完整版本</a>
+        <span id="privacy-pill" class="privacy-pill">正在检查 Focus 扩展</span>
+        <button id="account-button" class="account-button" type="button">登录 / 注册</button>
+        <a id="download-link" href="https://github.com/miaoooow/Focus/releases/latest/download/Focus-Browser-Extension.zip">安装 Focus 扩展</a>
       </div>
     </header>
 
@@ -33,11 +35,11 @@
           <p class="eyebrow">A QUIET PLACE TO FINISH THINGS</p>
           <h1>把注意力留给<br /><em>真正想完成的事。</em></h1>
           <p id="hero-intro" class="intro">
-            不用安装，不用注册。写下目标，Luna 会替你安排这一轮节奏，
-            在你离开页面太久时轻轻敲一下桌子。
+            安装一次 Focus 扩展后，Luna 会把目标变成本轮网站白名单，
+            即使切换标签页也能继续监督。登录可直接使用免费 AI，不需要 API Key。
           </p>
           <div class="hero-meta">
-            <span>免安装</span><span>本地保存</span><span>离线可用</span>
+            <span>一次安装扩展</span><span>本地保存</span><span>免费 AI 可选</span>
           </div>
         </div>
         <div class="cat-vignette" aria-label="Luna 小猫">
@@ -97,10 +99,10 @@
             />
             <div id="domain-suggestions" class="domain-suggestions" aria-live="polite"></div>
             <p id="monitor-mode-note" class="monitor-mode-note">
-              免安装网页无法读取其他标签页；安装扩展后，这份白名单会用于实时监督。
+              Focus 扩展是完整监督的必选组件；普通网页无法通过一次授权直接读取其他标签页。
             </p>
           </div>
-          <button id="start" class="button-primary">开始这一轮 <span>→</span></button>
+          <button id="start" class="button-primary" disabled>连接扩展后开始 <span>→</span></button>
           <p id="form-message" class="form-message" role="status"></p>
         </aside>
 
@@ -134,7 +136,7 @@
             <div><span id="drift-label">离开页面</span><b id="drift-count">0</b></div>
             <div><span>预计猫币</span><b id="coin-preview">+0</b></div>
           </div>
-          <div id="event-line" class="event-line">网页版本只判断你是否离开当前页面，不读取其他标签或软件。</div>
+          <div id="event-line" class="event-line">正在寻找 Focus 扩展。网页本身不会读取其他标签页。</div>
         </section>
       </section>
 
@@ -170,6 +172,13 @@
           <p><b id="growth-stage">刚到家的幼猫</b><span id="growth-next">再专注 60 分钟，Luna 会开始认主。</span></p>
           <div class="pet-customizer">
             <label>
+              <span>生成方式</span>
+              <select id="pet-renderer-web">
+                <option value="local">本机轻量动作</option>
+                <option value="focus_cloud">Focus AI 卡通化</option>
+              </select>
+            </label>
+            <label>
               <span>宠物名字</span>
               <input id="pet-name" maxlength="12" value="Luna" />
             </label>
@@ -179,16 +188,39 @@
             </label>
             <button id="save-pet" type="button">保存领养信息</button>
             <button id="reset-pet" type="button">恢复 Luna</button>
+            <label id="pet-cloud-consent-row" class="pet-cloud-consent" hidden>
+              <input id="pet-cloud-consent" type="checkbox" />
+              <span>我同意仅为本次卡通化，将这张照片发送给 Focus Cloud。</span>
+            </label>
           </div>
-          <p class="pet-privacy">网页会在当前浏览器本机生成四种卡通动作并保存，不会上传照片。</p>
+          <p id="pet-privacy" class="pet-privacy">本机模式会在当前浏览器生成四种动作并保存，不上传照片。</p>
         </div>
       </section>
     </main>
 
     <footer>
-      <span>Focus Web · 数据仅保存在当前浏览器</span>
+      <span>Focus Web · 扩展监督数据默认仅保存在当前浏览器</span>
       <a href="https://github.com/miaoooow/Focus">GitHub</a>
     </footer>
+    <dialog id="account-dialog" class="account-dialog">
+      <form id="account-form" method="dialog">
+        <div class="account-head">
+          <div><p class="eyebrow">FOCUS ACCOUNT</p><h2>登录后直接使用免费模型</h2></div>
+          <button id="account-close" type="button" aria-label="关闭">×</button>
+        </div>
+        <p>账户由 Focus Cloud 托管。用户不需要申请 OpenRouter、Gemini 或 Cloudflare Key；免费额度用完时自动回退本地规划。</p>
+        <label for="account-username">用户名</label>
+        <input id="account-username" maxlength="24" autocomplete="username" placeholder="3—24位中文、字母或数字" />
+        <label for="account-password">密码</label>
+        <input id="account-password" type="password" maxlength="72" autocomplete="current-password" placeholder="至少8位" />
+        <small id="account-status">尚未登录。</small>
+        <div class="account-dialog-actions">
+          <button id="account-register" type="button">注册</button>
+          <button id="account-login" type="button">登录</button>
+          <button id="account-logout" type="button" hidden>退出账户</button>
+        </div>
+      </form>
+    </dialog>
     <script src="app.js"></script>
   </body>
 </html>

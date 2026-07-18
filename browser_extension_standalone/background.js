@@ -7,6 +7,74 @@ const CAT_ICON =
   encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="128" height="128" rx="30" fill="#173f32"/><path d="M29 51 35 22l23 18h13l23-18 6 29c9 9 13 21 11 35-4 24-22 35-47 35S21 110 17 86c-2-14 3-27 12-35Z" fill="#d8f28b"/><circle cx="48" cy="68" r="5" fill="#173f32"/><circle cx="80" cy="68" r="5" fill="#173f32"/><path d="M57 81q7 8 14 0" fill="none" stroke="#173f32" stroke-width="5" stroke-linecap="round"/></svg>'
   );
+const DESKTOP_PORTS = Array.from({ length: 11 }, (_, index) => 8765 + index);
+let desktopPort = null;
+
+function browserProcess() {
+  const agent = navigator.userAgent || "";
+  if (/Edg\//i.test(agent)) return "msedge.exe";
+  if (/Firefox\//i.test(agent)) return "firefox.exe";
+  return "chrome.exe";
+}
+
+async function desktopRequest(port, path, options = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 650);
+  try {
+    return await fetch(`http://127.0.0.1:${port}${path}`, {
+      ...options,
+      signal: controller.signal,
+      cache: "no-store",
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function locateDesktop() {
+  if (desktopPort !== null) return desktopPort;
+  for (const port of DESKTOP_PORTS) {
+    try {
+      const response = await desktopRequest(port, "/api/health");
+      const payload = await response.json();
+      if (response.ok && payload?.data?.service === "focus") {
+        desktopPort = port;
+        return port;
+      }
+    } catch {
+      // The EXE may not be running; continue without showing an error.
+    }
+  }
+  return null;
+}
+
+async function publishActiveTabToDesktop() {
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  if (!tab?.url || tab.incognito) return;
+  let url;
+  try {
+    url = new URL(tab.url);
+  } catch {
+    return;
+  }
+  if (!["http:", "https:"].includes(url.protocol)) return;
+  const port = await locateDesktop();
+  if (port === null) return;
+  try {
+    const response = await desktopRequest(port, "/api/browser/active", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        process_name: browserProcess(),
+        domain: normalizeDomain(url.hostname),
+        title: String(tab.title || "").slice(0, 120),
+      }),
+    });
+    if (!response.ok) desktopPort = null;
+  } catch {
+    desktopPort = null;
+  }
+}
 
 const defaultState = () => ({
   session: null,
@@ -109,6 +177,7 @@ async function finishSession(state) {
 }
 
 async function evaluateActiveTab() {
+  publishActiveTabToDesktop();
   const state = await readState();
   const session = state.session;
   if (!session || session.status !== "running") return;
@@ -313,7 +382,9 @@ async function activeTabSummary() {
 chrome.runtime.onInstalled.addListener(async () => {
   const current = await chrome.storage.local.get(STORAGE_KEY);
   if (!current[STORAGE_KEY]) await writeState(defaultState());
+  await publishActiveTabToDesktop();
 });
+chrome.runtime.onStartup.addListener(() => publishActiveTabToDesktop());
 
 chrome.tabs.onActivated.addListener(() => evaluateActiveTab());
 chrome.tabs.onUpdated.addListener((_tabId, changeInfo) => {
@@ -327,6 +398,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   const actions = {
+    ping: async () => ({ connected: true, version: chrome.runtime.getManifest().version }),
     state: readState,
     start: () => startSession(message.payload || {}),
     pause: pauseSession,

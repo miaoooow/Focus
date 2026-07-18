@@ -12,7 +12,12 @@ from typing import Callable
 
 from .browser_bridge import BrowserBridge
 from .cat_skins import DEFAULT_CAT_SKIN
-from .cloud_ai import CloudAISettingsStore, GeminiPetClient, OpenRouterClient
+from .cloud_ai import (
+    CloudAISettingsStore,
+    FocusCloudClient,
+    GeminiPetClient,
+    OpenRouterClient,
+)
 from .contracts import SessionConfig, TargetRule, parse_session_response, session_config_to_dict
 from .matcher import browser_domain_is_unknown, matching_rules
 from .ollama_client import OllamaClient
@@ -74,12 +79,14 @@ class FocusController:
         self.lock = threading.RLock()
         self.client = OllamaClient()
         self.cloud_settings = CloudAISettingsStore()
+        self.focus_cloud_client = FocusCloudClient(self.cloud_settings)
         self.cloud_text_client = OpenRouterClient(self.cloud_settings)
         self.cloud_pet_client = GeminiPetClient(self.cloud_settings)
         self.parser = SessionParserService(
             self.client,
             cloud_settings=self.cloud_settings,
             cloud_client=self.cloud_text_client,
+            focus_cloud_client=self.focus_cloud_client,
         )
         # AI edition: plan every goal with Ollama by default and prepare most
         # reminder variations in the background without blocking monitoring.
@@ -254,6 +261,18 @@ class FocusController:
         with self.lock:
             return self.cloud_settings.update(payload)
 
+    def register_focus_account(self, username: str, password: str) -> dict:
+        with self.lock:
+            return self.focus_cloud_client.register(username, password)
+
+    def login_focus_account(self, username: str, password: str) -> dict:
+        with self.lock:
+            return self.focus_cloud_client.login(username, password)
+
+    def logout_focus_account(self) -> dict:
+        with self.lock:
+            return self.focus_cloud_client.logout()
+
     def create_custom_pet(
         self,
         name: str,
@@ -263,14 +282,19 @@ class FocusController:
     ) -> dict:
         with self.lock:
             selected = str(renderer or "local").strip()
-            if selected == "gemini":
+            if selected in {"gemini", "focus_cloud"}:
                 if not consent:
                     raise ValueError("使用云端卡通化前，需要确认照片将发送给所选模型服务")
-                generated = self.cloud_pet_client.cartoonize(image_data)
+                if selected == "focus_cloud":
+                    generated = self.focus_cloud_client.cartoonize(image_data)
+                    renderer_name = "focus-cloud-action-sheet+local-growth-v2"
+                else:
+                    generated = self.cloud_pet_client.cartoonize(image_data)
+                    renderer_name = "gemini-action-sheet+local-growth-v2"
                 return self.profile.create_custom_pet(
                     name,
                     generated,
-                    renderer="gemini-action-sheet+local-growth-v2",
+                    renderer=renderer_name,
                 )
             if selected != "local":
                 raise ValueError("不支持这种宠物生成方式")
@@ -287,12 +311,9 @@ class FocusController:
             raise ValueError("缺少会话配置")
         config_payload = {**config_payload, "needs_clarification": False, "clarification_question": ""}
         config = parse_session_response(json.dumps(config_payload, ensure_ascii=False))
-        has_domain_rules = any(
-            rule.kind == "domain" for rule in config.allowed_targets + config.blocked_targets
-        )
-        if has_domain_rules and not self.browser_bridge.status()["connected"]:
+        if not self.browser_bridge.status()["connected"]:
             raise ValueError(
-                "网址白名单还看不到地址栏：请先加载 browser_extension 浏览器桥接，连接成功后再开始"
+                "Focus扩展尚未连接：网页和EXE统一依赖扩展识别当前网站。请先安装并启用一次Focus扩展"
             )
         with self.lock:
             if self.engine and self.engine.state in {SessionState.RUNNING, SessionState.PAUSED}:

@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from focus_agent.cloud_ai import (
     CloudAISettingsStore,
+    FocusCloudClient,
     GeminiPetClient,
     OpenRouterClient,
 )
@@ -72,6 +73,32 @@ class CloudAITests(unittest.TestCase):
         self.assertEqual(request.get_header("Authorization"), "Bearer key")
         payload = json.loads(request.data.decode("utf-8"))
         self.assertEqual(payload["model"], "openrouter/free")
+
+    def test_focus_account_hides_token_and_needs_no_provider_key(self):
+        self.store.update({"focus_cloud_url": "https://focus.example"})
+        response = {
+            "ok": True,
+            "data": {
+                "token": "focus-session-secret",
+                "username": "luna",
+                "expires_at": 2_000_000_000,
+            },
+        }
+        with patch(
+            "focus_agent.cloud_ai.urllib.request.urlopen",
+            return_value=FakeResponse(response),
+        ) as call:
+            snapshot = FocusCloudClient(self.store).register("luna", "password123")
+        self.assertTrue(snapshot["focus_account"]["signed_in"])
+        self.assertEqual(snapshot["text_provider"], "focus_cloud")
+        self.assertNotIn("focus-session-secret", json.dumps(snapshot))
+        self.assertNotIn(
+            "focus-session-secret",
+            self.store.path.read_text(encoding="utf-8"),
+        )
+        request = call.call_args.args[0]
+        self.assertEqual(request.full_url, "https://focus.example/v1/auth/register")
+        self.assertNotIn("Authorization", dict(request.header_items()))
 
     def test_gemini_image_response_becomes_a_local_data_url(self):
         self.store.update({"gemini_api_key": "key"})

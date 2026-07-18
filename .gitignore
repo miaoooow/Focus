@@ -9,5 +9,6 @@ release/
 Musics/
 *.ncm
 *.lrc
-docs/
+docs/*
+!docs/Focus_宣传视频制作脚本.md
 scripts/build_agent_design_doc.py

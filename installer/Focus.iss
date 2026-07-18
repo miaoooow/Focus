@@ -1,5 +1,5 @@
 #ifndef MyAppVersion
-  #define MyAppVersion "4.0.0"
+  #define MyAppVersion "4.1.0"
 #endif
 
 #define MyAppName "Focus"
