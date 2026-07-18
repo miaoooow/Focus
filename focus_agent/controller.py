@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Callable
 
 from .browser_bridge import BrowserBridge
+from .cat_skins import DEFAULT_CAT_SKIN
+from .cloud_ai import CloudAISettingsStore, GeminiPetClient, OpenRouterClient
 from .contracts import SessionConfig, TargetRule, parse_session_response, session_config_to_dict
 from .matcher import browser_domain_is_unknown, matching_rules
 from .ollama_client import OllamaClient
@@ -32,7 +34,7 @@ class NativeAlert:
     remaining_seconds: int
     alert_count: int = 1
     cat_name: str = "Luna"
-    cat_skin: str = "orange"
+    cat_skin: str = DEFAULT_CAT_SKIN
     cat_stage_index: int = 0
     penalty_points: int = 8
     focus_score: int = 92
@@ -47,7 +49,7 @@ class NativeSuggestion:
     reason: str
     soft_remaining_seconds: int
     cat_name: str = "Luna"
-    cat_skin: str = "orange"
+    cat_skin: str = DEFAULT_CAT_SKIN
     cat_stage_index: int = 0
 
 
@@ -58,7 +60,7 @@ class NativeReaction:
     headline: str
     detail: str
     cat_name: str = "Luna"
-    cat_skin: str = "orange"
+    cat_skin: str = DEFAULT_CAT_SKIN
     cat_stage_index: int = 0
 
 
@@ -71,7 +73,14 @@ class FocusController:
     ):
         self.lock = threading.RLock()
         self.client = OllamaClient()
-        self.parser = SessionParserService(self.client)
+        self.cloud_settings = CloudAISettingsStore()
+        self.cloud_text_client = OpenRouterClient(self.cloud_settings)
+        self.cloud_pet_client = GeminiPetClient(self.cloud_settings)
+        self.parser = SessionParserService(
+            self.client,
+            cloud_settings=self.cloud_settings,
+            cloud_client=self.cloud_text_client,
+        )
         # AI edition: plan every goal with Ollama by default and prepare most
         # reminder variations in the background without blocking monitoring.
         self.copy_provider = CopyProvider(
@@ -221,8 +230,8 @@ class FocusController:
     def _cat_skin(self) -> str:
         profile = getattr(self, "profile", None)
         if profile is None:
-            return "orange"
-        return str(profile.snapshot().get("pet", {}).get("skin") or "orange")
+            return DEFAULT_CAT_SKIN
+        return str(profile.snapshot().get("pet", {}).get("skin") or DEFAULT_CAT_SKIN)
 
     def _cat_stage_index(self) -> int:
         profile = getattr(self, "profile", None)
@@ -238,8 +247,33 @@ class FocusController:
         with self.lock:
             return self.profile.set_cat_skin(skin_id)
 
-    def create_custom_pet(self, name: str, image_data: str) -> dict:
+    def cloud_ai_settings(self) -> dict:
+        return self.cloud_settings.snapshot()
+
+    def update_cloud_ai_settings(self, payload: dict) -> dict:
         with self.lock:
+            return self.cloud_settings.update(payload)
+
+    def create_custom_pet(
+        self,
+        name: str,
+        image_data: str,
+        renderer: str = "local",
+        consent: bool = False,
+    ) -> dict:
+        with self.lock:
+            selected = str(renderer or "local").strip()
+            if selected == "gemini":
+                if not consent:
+                    raise ValueError("使用云端卡通化前，需要确认照片将发送给所选模型服务")
+                generated = self.cloud_pet_client.cartoonize(image_data)
+                return self.profile.create_custom_pet(
+                    name,
+                    generated,
+                    renderer="gemini-image+local-growth-v1",
+                )
+            if selected != "local":
+                raise ValueError("不支持这种宠物生成方式")
             return self.profile.create_custom_pet(name, image_data)
 
     def delete_custom_pet(self, custom_id: str) -> dict:
@@ -363,6 +397,7 @@ class FocusController:
                 "relation_database": self.relations.stats(),
                 "goal_scenario_database": self.parser.scenario_stats(),
                 "ai_planner": self.parser.ai_status(),
+                "cloud_ai": self.cloud_settings.snapshot(),
                 "roast_database": self.copy_provider.stats(),
                 "browser_bridge": {
                     **self.browser_bridge.status(now),

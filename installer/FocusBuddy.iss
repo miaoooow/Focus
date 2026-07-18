@@ -1,5 +1,5 @@
 #ifndef MyAppVersion
-  #define MyAppVersion "3.4.0"
+  #define MyAppVersion "3.5.0"
 #endif
 
 #define MyAppName "Focus Buddy"
@@ -27,6 +27,7 @@ WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\{#MyAppExeName}
+SetupIconFile=..\assets\branding\focus-buddy.ico
 SetupLogging=yes
 CloseApplications=yes
 RestartApplications=no

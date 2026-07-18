@@ -209,8 +209,14 @@ class FocusProfileStore:
             return f"custom:{custom_id}"
         return normalize_cat_skin(skin_id)
 
-    def create_custom_pet(self, name: str, image_data: str) -> dict:
-        item = self.custom_pets.create(name, image_data)
+    def create_custom_pet(
+        self,
+        name: str,
+        image_data: str,
+        *,
+        renderer: str = "local-cartoon-v1",
+    ) -> dict:
+        item = self.custom_pets.create(name, image_data, renderer=renderer)
         self.data["cat_name"] = item["name"]
         self.data["cat_skin"] = item["skin"]
         self._save()

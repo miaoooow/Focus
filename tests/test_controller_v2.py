@@ -68,7 +68,7 @@ class ControllerV2Tests(unittest.TestCase):
         self.assertTrue(profile["pet"]["skin"].startswith("custom:"))
         custom_id = profile["pet"]["skin"].removeprefix("custom:")
         deleted = self.controller.delete_custom_pet(custom_id)
-        self.assertEqual(deleted["pet"]["skin"], "orange")
+        self.assertEqual(deleted["pet"]["skin"], "tuxedo")
 
 
 if __name__ == "__main__":

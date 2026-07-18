@@ -15,7 +15,7 @@ class PublicEditionTests(unittest.TestCase):
         )
         manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["manifest_version"], 3)
-        self.assertEqual(manifest["version"], "3.4.0")
+        self.assertEqual(manifest["version"], "3.5.0")
         self.assertEqual(
             set(manifest["permissions"]),
             {"storage", "tabs", "alarms", "notifications"},
@@ -95,9 +95,23 @@ class PublicEditionTests(unittest.TestCase):
 
     def test_windows_ui_defaults_to_no_model_required(self):
         page = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
-        self.assertIn("本机 AI 增强（可选）", page)
+        self.assertIn("AI 增强（可选）", page)
+        self.assertIn('id="ai-settings-dialog"', page)
+        self.assertIn("Windows DPAPI", page)
         self.assertIn('<input id="ai-plan-toggle" type="checkbox">', page)
         self.assertNotIn('<input id="ai-plan-toggle" type="checkbox" checked>', page)
+
+    def test_windows_brand_assets_and_curated_audio_are_packaged(self):
+        spec = (ROOT / "FocusBuddy.spec").read_text(encoding="utf-8")
+        installer = (ROOT / "installer" / "FocusBuddy.iss").read_text(encoding="utf-8")
+        self.assertIn('"assets"', spec)
+        self.assertIn("focus-buddy.ico", spec)
+        self.assertIn("SetupIconFile=", installer)
+        self.assertTrue((ROOT / "assets" / "branding" / "focus-buddy-icon.png").is_file())
+        self.assertTrue((ROOT / "assets" / "branding" / "focus-buddy.ico").is_file())
+        soundscapes = list((ROOT / "assets" / "soundscapes").glob("*.ogg"))
+        self.assertEqual(len(soundscapes), 4)
+        self.assertLess(sum(path.stat().st_size for path in soundscapes), 9 * 1024 * 1024)
 
     def test_public_artifact_names_are_stable_for_direct_links(self):
         script = (ROOT / "scripts" / "build_public_editions.ps1").read_text(encoding="utf-8")

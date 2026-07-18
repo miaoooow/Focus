@@ -50,6 +50,15 @@ class CustomPetTests(unittest.TestCase):
             with Image.open(path) as image:
                 self.assertEqual(image.size, (560, 340))
 
+    def test_new_profile_starts_with_milk_cow_sheriff(self):
+        profile = FocusProfileStore(
+            RUNTIME_ROOT / "new_profile.json",
+            custom_pets=self.pet_store,
+        ).snapshot()
+        self.assertEqual(profile["pet"]["skin"], "tuxedo")
+        selected = next(item for item in profile["cat_skins"] if item["id"] == "tuxedo")
+        self.assertEqual(selected["name"], "奶牛警长")
+
     def test_custom_pet_can_be_adopted_and_deleted(self):
         profile = FocusProfileStore(
             RUNTIME_ROOT / "focus_profile.json",
@@ -62,7 +71,7 @@ class CustomPetTests(unittest.TestCase):
         self.assertEqual(len([item for item in created["cat_skins"] if item.get("custom")]), 1)
         custom_id = selected.removeprefix("custom:")
         after_delete = profile.delete_custom_pet(custom_id)
-        self.assertEqual(after_delete["pet"]["skin"], "orange")
+        self.assertEqual(after_delete["pet"]["skin"], "tuxedo")
         self.assertFalse(self.pet_store.exists(custom_id))
 
     def test_native_alert_resolves_the_selected_custom_growth_stage(self):

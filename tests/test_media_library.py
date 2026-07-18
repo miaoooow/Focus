@@ -18,9 +18,10 @@ class MediaLibraryTests(unittest.TestCase):
 
     def test_project_music_library_has_playable_tracks(self):
         library = build_media_library()
-        self.assertGreaterEqual(library["playable_count"], 15)
-        self.assertGreaterEqual(library["unavailable_count"], 1)
+        self.assertGreaterEqual(library["playable_count"], 4)
         self.assertGreaterEqual(len(library["categories"]), 4)
+        self.assertEqual(library["synth_count"], 0)
+        self.assertTrue(any(track["source"] == "bundled" for track in library["tracks"]))
         self.assertEqual(sum(category["count"] for category in library["categories"]), library["playable_count"])
         self.assertTrue(all(not track["url"].casefold().endswith(".ncm") for track in library["tracks"]))
 

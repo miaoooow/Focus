@@ -19,6 +19,7 @@ from .contracts import (
     sanitize_summary_response,
 )
 from .copy_library import FALLBACK_PHRASES, SUMMARY_FALLBACK_PHRASES
+from .cloud_ai import CloudAISettingsStore, OpenRouterClient
 from .goal_scenarios import GoalScenarioStore
 from .ollama_client import OllamaClient
 from .recommendations import fallback_config_for_goal
@@ -42,8 +43,17 @@ class GoalPlan:
 
 
 class SessionParserService:
-    def __init__(self, client: OllamaClient, model: str = "qwen3.5:9b"):
+    def __init__(
+        self,
+        client: OllamaClient,
+        model: str = "qwen3.5:9b",
+        *,
+        cloud_settings: CloudAISettingsStore | None = None,
+        cloud_client: OpenRouterClient | None = None,
+    ):
         self.client = client
+        self.cloud_settings = cloud_settings
+        self.cloud_client = cloud_client
         self.model = os.environ.get("FOCUS_BUDDY_MODEL", "").strip() or model
         try:
             self.ai_timeout_seconds = max(
@@ -127,21 +137,43 @@ class SessionParserService:
         raise RuntimeError(f"没有可用的对话模型，请先下载 {self.model}")
 
     def plan_goal(self, goal: str, use_ai: bool = True) -> GoalPlan:
-        """Use local Ollama by default and fall back to the validated local DB."""
+        """Use the selected AI provider and fall back to the validated local DB."""
         if not use_ai:
+            self._ai_status["enabled"] = False
+            return self._local_plan(goal)
+        provider = (
+            self.cloud_settings.snapshot()["text_provider"]
+            if self.cloud_settings is not None
+            else "ollama"
+        )
+        if provider == "local":
             self._ai_status["enabled"] = False
             return self._local_plan(goal)
         self._ai_status.update({"enabled": True, "state": "thinking", "last_error": ""})
         started = time.perf_counter()
         try:
-            model = self._available_model()
-            raw = self.client.chat(
-                model=model,
-                messages=build_ai_planning_messages(goal, self.scenarios.catalog()),
-                temperature=0.1,
-                max_context=4096,
-                timeout_seconds=self.ai_timeout_seconds,
-            )
+            if provider == "openrouter":
+                if self.cloud_client is None or self.cloud_settings is None:
+                    raise ValueError("OpenRouter连接尚未初始化")
+                model = self.cloud_settings.snapshot()["openrouter_model"]
+                raw = self.cloud_client.chat(
+                    model=model,
+                    messages=build_ai_planning_messages(goal, self.scenarios.catalog()),
+                    temperature=0.1,
+                    max_context=4096,
+                    timeout_seconds=self.ai_timeout_seconds,
+                )
+                source_prefix = "云端AI"
+            else:
+                model = self._available_model()
+                raw = self.client.chat(
+                    model=model,
+                    messages=build_ai_planning_messages(goal, self.scenarios.catalog()),
+                    temperature=0.1,
+                    max_context=4096,
+                    timeout_seconds=self.ai_timeout_seconds,
+                )
+                source_prefix = "本机AI"
             result = parse_ai_planning_result(
                 raw,
                 goal=goal,
@@ -188,7 +220,7 @@ class SessionParserService:
                 clarification_question="",
             )
             latency_ms = round((time.perf_counter() - started) * 1000)
-            source = f"本机AI · {model}"
+            source = f"{source_prefix} · {model}"
             self._ai_status.update(
                 {
                     "state": "ready",

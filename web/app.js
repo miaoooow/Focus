@@ -16,6 +16,7 @@ let synthPlaying = false;
 let synthStartedAt = 0;
 let synthElapsedSeconds = 0;
 let synthGain = null;
+let cloudAISettings = null;
 
 const goalInput = $("#goal-input");
 const planButton = $("#plan-button");
@@ -143,11 +144,16 @@ async function planGoal() {
   planButton.disabled = true;
   planButton.classList.add("loading");
   const useAI = Boolean(aiPlanToggle?.checked);
-  planButton.querySelectorAll("span")[1].textContent = useAI ? "本机AI正在理解" : "正在匹配场景";
+  const cloudMode = cloudAISettings?.text_provider === "openrouter";
+  planButton.querySelectorAll("span")[1].textContent = useAI
+    ? (cloudMode ? "云端AI正在理解" : "本机AI正在理解")
+    : "正在匹配场景";
   $("#ai-model-pill").dataset.state = useAI ? "thinking" : "local";
-  $("#model-status").textContent = useAI ? "本机AI思考中" : "本地场景库";
+  $("#model-status").textContent = useAI
+    ? (cloudMode ? "云端AI思考中" : "本机AI思考中")
+    : "本地场景库";
   $("#plan-note").textContent = useAI
-    ? "检测到本机AI时会增强理解；最终权限仍由本地规则校验。"
+    ? "AI只负责理解目标；最终权限仍由本地规则校验。"
     : "无需模型，使用内置场景数据库立即解析。";
   try {
     currentPlan = await api("/api/plan", { goal, use_ai: useAI });
@@ -159,7 +165,7 @@ async function planGoal() {
     setSegment("#intensity-control", "intensity", config.roast_intensity);
     $("#plan-source").textContent = `${currentPlan.source} · ${currentPlan.scenes.length}个场景`;
     $("#plan-note").textContent = currentPlan.fallback_reason
-      ? "本机AI未启用，已自动使用内置场景库，不影响本轮专注。"
+      ? "所选AI暂时不可用，已自动使用内置场景库，不影响本轮专注。"
       : (currentPlan.detail || "勾选结果是最终白名单；不确定的工具不会偷偷获得权限。");
     $("#model-status").textContent = currentPlan.source;
     $("#ai-model-pill").dataset.state = currentPlan.ai_used ? "ready" : (useAI ? "fallback" : "local");
@@ -331,6 +337,7 @@ function renderState(state) {
   renderProfile(state.profile || {});
   renderDatabase(state.relation_database || {}, state.roast_database || {});
   renderBrowserBridge(state.browser_bridge || {});
+  if (state.cloud_ai) cloudAISettings = state.cloud_ai;
   renderAIPlanner(state.ai_planner || {});
   if (state.reward && !rewardShown) {
     rewardShown = true;
@@ -347,10 +354,10 @@ function renderAIPlanner(status) {
   pill.dataset.state = state;
   const labels = {
     not_checked: "本地模式就绪",
-    thinking: "本机AI思考中",
+    thinking: cloudAISettings?.text_provider === "openrouter" ? "云端AI思考中" : "本机AI思考中",
     fallback: "AI离线 · 本地接管",
     local: "本地场景库",
-    ready: `本机AI · ${status.model || "Ollama"}`,
+    ready: `${cloudAISettings?.text_provider === "openrouter" ? "云端AI" : "本机AI"} · ${status.model || "Ollama"}`,
   };
   $("#model-status").textContent = labels[state] || "本地模式就绪";
 }
@@ -368,10 +375,10 @@ function renderProfile(profile) {
     mood: "等着第一顿专注猫粮，也等着认识你",
   };
   const signature = JSON.stringify(profile);
-  const skin = pet.skin || profile.cat_skin || "orange";
+  const skin = pet.skin || profile.cat_skin || "tuxedo";
   const catalog = Array.isArray(profile.cat_skins) ? profile.cat_skins : [];
   const selectedSkin = catalog.find((item) => item.id === skin);
-  const safeSkin = ["orange", "tuxedo", "ragdoll"].includes(skin) ? skin : "orange";
+  const safeSkin = ["orange", "tuxedo", "ragdoll"].includes(skin) ? skin : "tuxedo";
   const adultAsset = selectedSkin?.asset_url || `/assets/cat-story-skins/${safeSkin}-adult-v2.png`;
   const youngAsset = selectedSkin?.young_asset_url || `/assets/cat-story-skins/${safeSkin}-young-v2.png`;
   const customStages = Array.isArray(selectedSkin?.stage_assets) ? selectedSkin.stage_assets : [];
@@ -790,9 +797,41 @@ async function refreshState() {
   }
 }
 
+function renderCloudAISettings(settings) {
+  if (!settings) return;
+  cloudAISettings = settings;
+  $("#text-provider").value = settings.text_provider || "local";
+  $("#pet-renderer-setting").value = settings.pet_renderer || "local";
+  $("#custom-pet-renderer").value = settings.pet_renderer || "local";
+  $("#openrouter-key-status").textContent = settings.openrouter_configured
+    ? `已安全保存 · ${settings.openrouter_model}`
+    : "未配置。免费路由仍需申请个人 Key，并受服务商限额约束。";
+  $("#gemini-key-status").textContent = settings.gemini_configured
+    ? `已安全保存 · ${settings.gemini_image_model} · 图片生成可能计费`
+    : "云端图片生成可能产生服务商费用，上传前会再次征得同意。";
+  $("#ai-settings-button").textContent = settings.openrouter_configured
+    ? "云端 AI 已连接"
+    : "连接云端 AI";
+  updatePetRendererConsent();
+}
+
+async function loadCloudAISettings() {
+  try {
+    renderCloudAISettings(await api("/api/ai/settings"));
+  } catch (error) {
+    showToast(`AI连接设置读取失败：${error.message}`, true);
+  }
+}
+
+function updatePetRendererConsent() {
+  const cloud = $("#custom-pet-renderer").value === "gemini";
+  $("#pet-cloud-consent-row").hidden = !cloud;
+  if (!cloud) $("#pet-cloud-consent").checked = false;
+}
+
 planButton.addEventListener("click", planGoal);
 startButton.addEventListener("click", startSession);
-const currentUIVersion = "3.4.0";
+const currentUIVersion = "3.5.0";
 const savedAIPlanning = localStorage.getItem("focus-ai-planning");
 if (localStorage.getItem("focus-ui-version") !== currentUIVersion) {
   aiPlanToggle.checked = false;
@@ -812,6 +851,42 @@ aiPlanToggle.addEventListener("change", () => {
     : "解析任务场景";
   $("#plan-source").textContent = aiPlanToggle.checked ? "等待AI解析" : "等待本地解析";
 });
+
+$("#ai-settings-button").addEventListener("click", () => $("#ai-settings-dialog").showModal());
+$("#ai-settings-close").addEventListener("click", () => $("#ai-settings-dialog").close());
+$("#ai-settings-cancel").addEventListener("click", () => $("#ai-settings-dialog").close());
+$("#ai-settings-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const save = $("#ai-settings-save");
+  save.disabled = true;
+  save.textContent = "正在保存…";
+  try {
+    const settings = await api("/api/ai/settings", {
+      text_provider: $("#text-provider").value,
+      openrouter_api_key: $("#openrouter-key").value.trim(),
+      pet_renderer: $("#pet-renderer-setting").value,
+      gemini_api_key: $("#gemini-key").value.trim(),
+    });
+    $("#openrouter-key").value = "";
+    $("#gemini-key").value = "";
+    renderCloudAISettings(settings);
+    aiPlanToggle.checked = settings.text_provider !== "local";
+    localStorage.setItem("focus-ai-planning", String(aiPlanToggle.checked));
+    currentPlan = null;
+    $("#ai-settings-dialog").close();
+    showToast(settings.text_provider === "openrouter" ? "云端任务解析已连接" : "AI设置已保存");
+  } catch (error) {
+    showToast(error.message, true);
+  } finally {
+    save.disabled = false;
+    save.textContent = "保存连接";
+  }
+});
+$("#pet-renderer-setting").addEventListener("change", () => {
+  $("#custom-pet-renderer").value = $("#pet-renderer-setting").value;
+  updatePetRendererConsent();
+});
+$("#custom-pet-renderer").addEventListener("change", updatePetRendererConsent);
 
 $("#preview-cat-button").addEventListener("click", async () => {
   try {
@@ -879,10 +954,21 @@ $("#custom-pet-form").addEventListener("submit", async (event) => {
     return;
   }
   const button = $("#custom-pet-create");
+  const renderer = $("#custom-pet-renderer").value;
+  const consent = Boolean($("#pet-cloud-consent").checked);
+  if (renderer === "gemini" && !consent) {
+    showToast("使用AI卡通化前，请先确认本次照片可以发送给 Gemini", true);
+    return;
+  }
   button.disabled = true;
-  button.textContent = "正在本机生成…";
+  button.textContent = renderer === "gemini" ? "AI正在画它…" : "正在本机生成…";
   try {
-    const profile = await api("/api/pet/custom/create", { name, image: customPetImage });
+    const profile = await api("/api/pet/custom/create", {
+      name,
+      image: customPetImage,
+      renderer,
+      consent,
+    });
     if (currentState) currentState.profile = profile;
     profileSignature = "";
     renderProfile(profile);
@@ -890,6 +976,7 @@ $("#custom-pet-form").addEventListener("submit", async (event) => {
     $("#custom-pet-form").reset();
     $("#custom-pet-preview").hidden = true;
     $("#custom-pet-drop-copy").hidden = false;
+    updatePetRendererConsent();
     showToast(`${profile.pet?.name || name}已经搬进成长房间`);
   } catch (error) {
     showToast(error.message, true);
@@ -1089,6 +1176,7 @@ $("#motion-toggle").addEventListener("click", () => {
 if (localStorage.getItem("focus-reduce-motion") === "1") document.body.classList.add("reduce-motion");
 refreshState();
 loadSoundLibrary();
+loadCloudAISettings();
 setInterval(refreshState, 800);
 setInterval(() => {
   if (!synthPlaying) return;

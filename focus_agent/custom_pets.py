@@ -213,7 +213,13 @@ class CustomPetStore:
             )
         return canvas
 
-    def create(self, name: str, image_data: str) -> dict:
+    def create(
+        self,
+        name: str,
+        image_data: str,
+        *,
+        renderer: str = "local-cartoon-v1",
+    ) -> dict:
         if len(self.items) >= 12:
             raise ValueError("猫窝最多收养12位成员，请先送别一位再添加")
         pet_name = self._validate_name(name)
@@ -234,9 +240,13 @@ class CustomPetStore:
             item = {
                 "id": custom_id,
                 "name": pet_name,
-                "description": "由你的照片在本机生成，会随专注时长一起长大",
+                "description": (
+                    "由AI卡通化后在本机生成四段成长形态"
+                    if renderer.startswith("gemini")
+                    else "由你的照片在本机生成，会随专注时长一起长大"
+                ),
                 "created_at": datetime.now(timezone.utc).isoformat(),
-                "renderer": "local-cartoon-v1",
+                "renderer": renderer,
             }
             self.items = [item, *self.items]
             self._save()

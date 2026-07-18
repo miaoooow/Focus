@@ -107,6 +107,12 @@ button:focus-visible, textarea:focus-visible, input:focus-visible {
 .ai-plan-switch input:checked + span { border-color: rgba(216,249,139,.5); background: rgba(111,221,164,.15); }
 .ai-plan-switch input:checked + span i { left: 18px; background: #d8f98b; box-shadow: 0 0 12px rgba(216,249,139,.45); }
 .ai-plan-switch b { font-weight: 650; }
+.ai-settings-button {
+  border: 0; padding: 2px 0; color: #b9d7c3; background: transparent;
+  font-size: 10px; font-weight: 700; text-decoration: underline;
+  text-decoration-color: rgba(185,215,195,.28); text-underline-offset: 4px; cursor: pointer;
+}
+.ai-settings-button:hover { color: #d8f98b; }
 .model-pill[data-state="fallback"] i { background: #efc66f; box-shadow: 0 0 12px rgba(239,198,111,.7); }
 .model-pill[data-state="thinking"] i { animation: ai-pulse 1s ease-in-out infinite; }
 .model-pill[data-state="local"] i { background: #8ca09a; box-shadow: none; }
@@ -299,6 +305,17 @@ button:focus-visible, textarea:focus-visible, input:focus-visible {
   color: #f4f8f2; background: rgba(255,255,255,.055); font-size: 14px;
 }
 .custom-pet-fields input:focus { border-color: rgba(141,224,175,.52); box-shadow: 0 0 0 4px rgba(111,221,164,.07); }
+.custom-pet-fields select {
+  grid-column: 1/-1; height: 38px; padding: 0 10px; outline: 0;
+  border: 1px solid rgba(255,255,255,.1); border-radius: 12px;
+  color: #dbe9df; background: #102d21; font-size: 11px;
+}
+.pet-cloud-consent {
+  display: flex !important; grid-column: 1/-1; align-items: center; gap: 7px;
+  color: #d4c28a !important; line-height: 1.35;
+}
+.pet-cloud-consent[hidden] { display: none !important; }
+.pet-cloud-consent input { width: 14px; height: 14px; min-width: 14px; padding: 0; accent-color: #79e3b0; }
 .custom-pet-fields button {
   padding: 0 13px; border: 0; border-radius: 13px; color: #102117;
   background: #d8f98b; font-weight: 760; cursor: pointer;
@@ -455,6 +472,48 @@ body.reduce-motion *, body.reduce-motion *::before, body.reduce-motion *::after 
   .pet-home { grid-template-columns: 1fr; }
   .pet-copy { padding-right: 20px; }
   .pet-room { min-height: 450px; }
+}
+
+.ai-settings-dialog {
+  width: min(650px, calc(100vw - 32px)); max-height: calc(100vh - 40px); padding: 0;
+  overflow: auto; border: 1px solid rgba(194,235,205,.18); border-radius: 28px;
+  color: var(--text); background: linear-gradient(155deg,#14382a,#081c14 72%);
+  box-shadow: 0 44px 120px rgba(0,8,4,.72);
+}
+.ai-settings-dialog::backdrop { background: rgba(2,12,8,.74); backdrop-filter: blur(14px); }
+.ai-settings-dialog form { padding: 25px; }
+.ai-dialog-head { display: flex; align-items: start; justify-content: space-between; gap: 20px; }
+.ai-dialog-head h2 { margin: 2px 0 0; font-size: 25px; letter-spacing: -.04em; }
+.ai-dialog-head > button {
+  width: 36px; height: 36px; border: 1px solid rgba(255,255,255,.1); border-radius: 50%;
+  color: #b8cbbd; background: rgba(255,255,255,.04); font-size: 22px; cursor: pointer;
+}
+.ai-dialog-intro { margin: 14px 0 18px; color: #a7baad; font-size: 13px; line-height: 1.65; }
+.ai-provider-card {
+  display: grid; grid-template-columns: 155px 1fr; align-items: center; gap: 10px 14px;
+  margin-top: 10px; padding: 15px; border: 1px solid rgba(196,233,204,.1);
+  border-radius: 18px; background: rgba(216,244,221,.035);
+}
+.ai-provider-card label { color: #dbe9df; font-size: 12px; font-weight: 690; }
+.ai-provider-card input,.ai-provider-card select {
+  min-width: 0; height: 40px; padding: 0 12px; outline: 0;
+  border: 1px solid rgba(196,233,204,.12); border-radius: 12px;
+  color: #edf5ed; background: #0a251a; font-size: 12px;
+}
+.ai-provider-card small { grid-column: 2; color: #84998c; font-size: 10px; line-height: 1.5; }
+.ai-security-note {
+  margin: 14px 2px 0; padding: 11px 13px; border-left: 2px solid #8de0af;
+  color: #94aa9d; background: rgba(141,224,175,.04); font-size: 10px; line-height: 1.6;
+}
+.ai-dialog-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 18px; }
+.ai-dialog-actions button {
+  min-width: 104px; height: 42px; border: 1px solid rgba(255,255,255,.1); border-radius: 13px;
+  color: #c8d8cd; background: rgba(255,255,255,.045); font-weight: 720; cursor: pointer;
+}
+#ai-settings-save { border: 0; color: #0a2117; background: linear-gradient(135deg,#8de0af,#d8f98b); }
+@media (max-width: 620px) {
+  .ai-provider-card { grid-template-columns: 1fr; }
+  .ai-provider-card small { grid-column: 1; }
 }
 
 /* Readability pass: the interface is designed for normal viewing at 100% zoom. */

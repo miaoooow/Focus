@@ -12,7 +12,7 @@ from .custom_pets import (
 from .paths import resource_root
 
 
-DEFAULT_CAT_SKIN = "orange"
+DEFAULT_CAT_SKIN = "tuxedo"
 
 CAT_SKINS = {
     "orange": {

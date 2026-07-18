@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/assets/branding/focus-buddy-icon.png" type="image/png">
   <meta name="color-scheme" content="dark">
   <title>Focus Buddy · 一键专注版</title>
-  <link rel="stylesheet" href="/styles.css?v=8">
+  <link rel="stylesheet" href="/styles.css?v=9">
 </head>
 <body>
   <div class="ambient ambient-a"></div>
@@ -15,7 +15,7 @@
   <aside class="rail">
     <a class="brand" href="#" aria-label="Focus Buddy 首页">
       <span class="brand-mark"><span></span></span>
-      <span><b>Focus</b><small>Buddy / LOCAL</small></span>
+      <span><b>Focus</b><small>Buddy / DESKTOP</small></span>
     </a>
 
     <nav class="nav" aria-label="主导航">
@@ -25,7 +25,7 @@
     </nav>
 
     <div class="rail-pet">
-      <div class="rail-cat-mask"><img id="rail-cat-image" src="/assets/cat-story-skins/orange-young-v2.png" alt="你的专注小猫"></div>
+      <div class="rail-cat-mask"><img id="rail-cat-image" src="/assets/cat-story-skins/tuxedo-young-v2.png" alt="奶牛警长"></div>
           <div><b id="rail-cat-name">Luna</b><small id="rail-cat-stage">刚到家的幼猫</small></div>
     </div>
     <div class="rail-foot">
@@ -67,8 +67,9 @@
           <label class="ai-plan-switch" for="ai-plan-toggle">
             <input id="ai-plan-toggle" type="checkbox">
             <span><i></i></span>
-            <b>本机 AI 增强（可选）</b>
+            <b>AI 增强（可选）</b>
           </label>
+          <button id="ai-settings-button" class="ai-settings-button" type="button">连接云端 AI</button>
           <button id="plan-button" class="primary-button plan-button">
             <span class="button-orb">✦</span><span>解析任务场景</span><b>↗</b>
           </button>
@@ -293,11 +294,11 @@
               <small>换外观，不清空成长记录</small>
             </div>
             <div class="cat-skin-options" role="radiogroup" aria-label="选择小猫外观">
-              <button class="cat-skin-option selected" type="button" data-cat-skin="orange" role="radio" aria-checked="true">
+              <button class="cat-skin-option" type="button" data-cat-skin="orange" role="radio" aria-checked="false">
                 <img src="/assets/cat-story-skins/orange-young-v2.png" alt="橘色幼猫">
                 <span><b>橘子汽水</b><small>好奇圆脸幼猫</small></span>
               </button>
-              <button class="cat-skin-option" type="button" data-cat-skin="tuxedo" role="radio" aria-checked="false">
+              <button class="cat-skin-option selected" type="button" data-cat-skin="tuxedo" role="radio" aria-checked="true">
                 <img src="/assets/cat-story-skins/tuxedo-young-v2.png" alt="黑白燕尾服幼猫">
                 <span><b>奶牛警长</b><small>假装严肃的幼猫</small></span>
               </button>
@@ -311,7 +312,7 @@
           <form id="custom-pet-form" class="custom-pet-studio">
             <div class="custom-pet-heading">
               <span>把自家宠物带进来</span>
-              <small>照片只在本机处理 · 自动生成四段成长形态</small>
+              <small>可选本机处理或 AI 卡通化 · 自动生成四段成长形态</small>
             </div>
             <div class="custom-pet-builder">
               <label class="pet-photo-drop" for="custom-pet-file">
@@ -322,6 +323,14 @@
               <div class="custom-pet-fields">
                 <label for="custom-pet-name">它叫什么？</label>
                 <input id="custom-pet-name" maxlength="12" autocomplete="off" placeholder="例如：豆包">
+                <select id="custom-pet-renderer" aria-label="宠物照片处理方式">
+                  <option value="local">本机卡通化 · 隐私优先</option>
+                  <option value="gemini">Gemini AI 卡通化 · 需要密钥</option>
+                </select>
+                <label id="pet-cloud-consent-row" class="pet-cloud-consent" hidden>
+                  <input id="pet-cloud-consent" type="checkbox">
+                  <span>我同意将本次照片发送给 Gemini 处理</span>
+                </label>
                 <button id="custom-pet-create" type="submit">生成并领养</button>
               </div>
             </div>
@@ -403,7 +412,43 @@
     </section>
   </main>
 
+  <dialog id="ai-settings-dialog" class="ai-settings-dialog">
+    <form id="ai-settings-form" method="dialog">
+      <div class="ai-dialog-head">
+        <div><p class="eyebrow">OPTIONAL CLOUD AI</p><h2>连接你自己的模型</h2></div>
+        <button id="ai-settings-close" type="button" aria-label="关闭">×</button>
+      </div>
+      <p class="ai-dialog-intro">不再要求安装 Ollama。任务解析可使用 OpenRouter 免费模型；宠物卡通化可选 Gemini 图片模型。</p>
+      <div class="ai-provider-card">
+        <label for="text-provider">任务场景解析</label>
+        <select id="text-provider">
+          <option value="local">本地场景库 · 最快且完全离线</option>
+          <option value="openrouter">OpenRouter 云端 AI · 无需下载模型</option>
+          <option value="ollama">Ollama 本机模型 · 完全本地</option>
+        </select>
+        <label for="openrouter-key">OpenRouter API Key</label>
+        <input id="openrouter-key" type="password" autocomplete="off" placeholder="已保存则可留空">
+        <small id="openrouter-key-status">未配置。免费路由仍需申请个人 Key，并受服务商限额约束。</small>
+      </div>
+      <div class="ai-provider-card">
+        <label for="pet-renderer-setting">宠物卡通化</label>
+        <select id="pet-renderer-setting">
+          <option value="local">本机卡通化 · 不上传</option>
+          <option value="gemini">Gemini 图片模型 · 效果更丰富</option>
+        </select>
+        <label for="gemini-key">Gemini API Key</label>
+        <input id="gemini-key" type="password" autocomplete="off" placeholder="已保存则可留空">
+        <small id="gemini-key-status">云端图片生成可能产生服务商费用，上传前会再次征得同意。</small>
+      </div>
+      <p class="ai-security-note">软件不内置共享密钥；你的 Key 只保存在本机，并由 Windows DPAPI 加密。网页端永远读不到明文。</p>
+      <div class="ai-dialog-actions">
+        <button id="ai-settings-cancel" type="button">暂不连接</button>
+        <button id="ai-settings-save" type="submit">保存连接</button>
+      </div>
+    </form>
+  </dialog>
+
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/app.js?v=8" defer></script>
+  <script src="/app.js?v=9" defer></script>
 </body>
 </html>

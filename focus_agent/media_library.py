@@ -1,4 +1,4 @@
-"""Read-only catalog for local, browser-playable focus ambience files."""
+"""Read-only catalog for small bundled and user-owned focus ambience files."""
 
 from __future__ import annotations
 
@@ -85,8 +85,16 @@ def build_media_library(project_root: Path | None = None, data_root: Path | None
     writable_root = data_root or user_data_root()
     user_music_root = writable_root / "Musics"
     user_music_root.mkdir(parents=True, exist_ok=True)
-    music_roots = (("user", user_music_root), ("bundled", root / "Musics"))
-    tracks = [dict(item) for item in SYNTHETIC_TRACKS]
+    # The curated pack is intentionally short Opus audio and is always bundled.
+    # A user's full-size collection stays outside the executable in AppData.
+    music_roots = (
+        ("bundled", root / "assets" / "soundscapes"),
+        ("user", user_music_root),
+        # Source checkouts may still expose the gitignored Musics directory.
+        # Packaged builds do not include it unless explicitly requested.
+        ("local", root / "Musics"),
+    )
+    tracks: list[dict] = []
     unavailable = 0
     seen_files: set[tuple[str, str]] = set()
     for source, music_root in music_roots:
@@ -121,6 +129,11 @@ def build_media_library(project_root: Path | None = None, data_root: Path | None
                     "size_mb": round(path.stat().st_size / 1024 / 1024, 1),
                 }
             )
+    # Keep a zero-byte Web Audio fallback only for installs with no playable
+    # files. Real recordings should never be mixed with the old synthetic set.
+    if not tracks:
+        tracks = [dict(item) for item in SYNTHETIC_TRACKS]
+    synth_count = sum(1 for track in tracks if track["source"] == "synth")
     counts = {item["id"]: 0 for item in CATEGORIES}
     for track in tracks:
         counts[track["category"]] += 1
@@ -129,7 +142,7 @@ def build_media_library(project_root: Path | None = None, data_root: Path | None
         "tracks": tracks,
         "categories": categories,
         "playable_count": len(tracks),
-        "synth_count": len(SYNTHETIC_TRACKS),
-        "file_count": len(tracks) - len(SYNTHETIC_TRACKS),
+        "synth_count": synth_count,
+        "file_count": len(tracks) - synth_count,
         "unavailable_count": unavailable,
     }

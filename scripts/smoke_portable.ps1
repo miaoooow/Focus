@@ -65,6 +65,14 @@ try {
     if (-not $BaseUrl) {
         throw 'Packaged app did not expose the Focus Buddy AI local API'
     }
+    $initialState = Invoke-RestMethod -Uri "$BaseUrl/api/state" -TimeoutSec 5
+    if ($initialState.data.profile.pet.skin -ne 'tuxedo') {
+        throw 'New packaged profile did not start with 奶牛警长'
+    }
+    $cloudSettings = Invoke-RestMethod -Uri "$BaseUrl/api/ai/settings" -TimeoutSec 5
+    if ($cloudSettings.data.openrouter_model -ne 'openrouter/free') {
+        throw 'Cloud AI settings endpoint is incomplete'
+    }
 
     $planBody = @{
         goal = 'Finish Python coursework and run tests in 45 minutes'
@@ -80,6 +88,11 @@ try {
         }
     }
 
+    if ($RequireFallback) {
+        $providerBody = @{ text_provider = 'ollama' } | ConvertTo-Json -Compress
+        Invoke-RestMethod -Uri "$BaseUrl/api/ai/settings" -Method Post `
+            -ContentType 'application/json; charset=utf-8' -Body $providerBody | Out-Null
+    }
     $aiBody = @{
         goal = 'Edit an interview recording into a podcast in 35 minutes'
         use_ai = $true
@@ -99,8 +112,8 @@ try {
     }
 
     $media = Invoke-RestMethod -Uri "$BaseUrl/api/media/library" -TimeoutSec 5
-    if ($media.data.synth_count -lt 4 -or $media.data.playable_count -lt 4) {
-        throw 'Packaged synthesized sound library is incomplete'
+    if ($media.data.synth_count -ne 0 -or $media.data.file_count -lt 4) {
+        throw 'Packaged curated sound library is incomplete'
     }
 
     $photoBytes = [IO.File]::ReadAllBytes((Join-Path $ProjectRoot 'pictures\focus.png'))
@@ -131,7 +144,7 @@ try {
     $deleteBody = @{ id = $customId } | ConvertTo-Json -Compress
     $deleted = Invoke-RestMethod -Uri "$BaseUrl/api/pet/custom/delete" -Method Post `
         -ContentType 'application/json; charset=utf-8' -Body $deleteBody
-    if ($deleted.data.pet.skin -ne 'orange') {
+    if ($deleted.data.pet.skin -ne 'tuxedo') {
         throw 'Deleting the selected custom pet did not restore a built-in pet'
     }
 
@@ -144,8 +157,7 @@ try {
         AIFallbackReason = $aiPlan.data.fallback_reason
         GoalTargets = $values -join ', '
         Scenarios = $plan.data.scenes.Count
-        SynthesizedAudio = $media.data.synth_count
-        LocalAudioFiles = $media.data.file_count
+        CuratedAudioFiles = $media.data.file_count
         CustomGrowthAssets = $catalogItem.stage_assets.Count
         CustomPetDeleteFallback = $deleted.data.pet.skin
     } | Format-List

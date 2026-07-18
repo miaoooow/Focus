@@ -115,6 +115,18 @@ class FocusRequestHandler(BaseHTTPRequestHandler):
             raise ValueError("请求必须是JSON对象")
         return payload
 
+    def _require_local_ui_origin(self) -> None:
+        """Prevent arbitrary websites from spending a locally stored AI key."""
+        origin = str(self.headers.get("Origin", "")).rstrip("/")
+        if not origin:
+            return
+        allowed = {
+            f"http://127.0.0.1:{self.server.server_port}",
+            f"http://localhost:{self.server.server_port}",
+        }
+        if origin not in allowed:
+            raise PermissionError("此接口只能由 Focus Buddy 本机窗口调用")
+
     def do_GET(self) -> None:
         path = urlparse(self.path).path
         if path == "/api/state":
@@ -139,6 +151,9 @@ class FocusRequestHandler(BaseHTTPRequestHandler):
         if path == "/api/media/library":
             self._json({"ok": True, "data": build_media_library(PROJECT_ROOT)})
             return
+        if path == "/api/ai/settings":
+            self._json({"ok": True, "data": self.server.controller.cloud_ai_settings()})
+            return
         self._serve_static(path)
 
     def do_OPTIONS(self) -> None:
@@ -152,6 +167,8 @@ class FocusRequestHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         path = urlparse(self.path).path
         try:
+            if path in {"/api/ai/settings", "/api/pet/custom/create"}:
+                self._require_local_ui_origin()
             payload = self._read_json(
                 8 * 1024 * 1024 if path == "/api/pet/custom/create" else 100_000
             )
@@ -177,9 +194,13 @@ class FocusRequestHandler(BaseHTTPRequestHandler):
                 data = self.server.controller.create_custom_pet(
                     str(payload.get("name", "")),
                     str(payload.get("image", "")),
+                    str(payload.get("renderer", "local")),
+                    bool(payload.get("consent", False)),
                 )
             elif path == "/api/pet/custom/delete":
                 data = self.server.controller.delete_custom_pet(str(payload.get("id", "")))
+            elif path == "/api/ai/settings":
+                data = self.server.controller.update_cloud_ai_settings(payload)
             elif path == "/api/session/start":
                 data = self.server.controller.start_session(payload)
             elif path == "/api/session/pause":
@@ -201,6 +222,8 @@ class FocusRequestHandler(BaseHTTPRequestHandler):
                 self._json({"ok": False, "error": "接口不存在"}, HTTPStatus.NOT_FOUND)
                 return
             self._json({"ok": True, "data": data})
+        except PermissionError as exc:
+            self._json({"ok": False, "error": str(exc)}, HTTPStatus.FORBIDDEN)
         except (ValueError, json.JSONDecodeError) as exc:
             self._json({"ok": False, "error": str(exc)}, HTTPStatus.BAD_REQUEST)
         except Exception as exc:
@@ -215,8 +238,9 @@ class FocusRequestHandler(BaseHTTPRequestHandler):
             if not separator:
                 source, media_relative = "bundled", relative
             roots = {
-                "bundled": PROJECT_ROOT / "Musics",
+                "bundled": PROJECT_ROOT / "assets" / "soundscapes",
                 "user": user_data_root() / "Musics",
+                "local": PROJECT_ROOT / "Musics",
             }
             media_root = roots.get(source)
             if media_root is None:

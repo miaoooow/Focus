@@ -19,7 +19,26 @@ class FakeController:
         self.last_plan_request = None
 
     def status(self):
-        return {"state": "idle", "profile": {}, "suggestions": []}
+        return {
+            "state": "idle",
+            "profile": {},
+            "suggestions": [],
+            "cloud_ai": self.cloud_ai_settings(),
+        }
+
+    def cloud_ai_settings(self):
+        return {
+            "text_provider": "local",
+            "openrouter_model": "openrouter/free",
+            "openrouter_configured": False,
+            "pet_renderer": "local",
+            "gemini_image_model": "gemini-2.5-flash-image",
+            "gemini_configured": False,
+            "key_storage": "Windows DPAPI",
+        }
+
+    def update_cloud_ai_settings(self, payload):
+        return {**self.cloud_ai_settings(), "text_provider": payload.get("text_provider", "local")}
 
     def plan_goal(self, goal, use_ai=True):
         self.last_plan_request = {"goal": goal, "use_ai": use_ai}
@@ -50,7 +69,7 @@ class FakeController:
             raise ValueError("不存在的小猫")
         return {"cat_skin": skin, "pet": {"name": "饭团", "skin": skin}}
 
-    def create_custom_pet(self, name, image_data):
+    def create_custom_pet(self, name, image_data, renderer="local", consent=False):
         return {"cat_name": name, "pet": {"name": name, "skin": "custom:0123456789abcdef"}}
 
     def delete_custom_pet(self, custom_id):
@@ -101,9 +120,10 @@ class WebAppTests(unittest.TestCase):
             self.assertIn("Focus Buddy", html)
             self.assertIn("default-src 'self'", csp)
             self.assertIn("media-src 'self'", csp)
-            self.assertIn("/styles.css?v=8", html)
-            self.assertIn("/app.js?v=8", html)
-            self.assertIn("本机 AI 增强", html)
+            self.assertIn("/styles.css?v=9", html)
+            self.assertIn("/app.js?v=9", html)
+            self.assertIn("AI 增强", html)
+            self.assertIn("连接你自己的模型", html)
             self.assertIn("选择雨幕、溪流、海岸或鸟鸣，让小猫替你守住这一段节奏。", html)
             self.assertNotIn('class="sound-facts"', html)
             self.assertNotIn('id="sound-library-note"', html)
@@ -115,10 +135,23 @@ class WebAppTests(unittest.TestCase):
 
             with urllib.request.urlopen(f"{base}/api/media/library", timeout=3) as response:
                 media = json.loads(response.read().decode("utf-8"))["data"]
-            self.assertGreaterEqual(media["playable_count"], 15)
-            self.assertEqual(media["synth_count"], 4)
+            self.assertGreaterEqual(media["playable_count"], 4)
+            self.assertEqual(media["synth_count"], 0)
             self.assertTrue(media["tracks"])
             self.assertTrue(all(not track["url"].casefold().endswith(".ncm") for track in media["tracks"]))
+
+            hostile_settings = urllib.request.Request(
+                f"{base}/api/ai/settings",
+                data=b'{"text_provider":"openrouter"}',
+                headers={
+                    "Content-Type": "application/json",
+                    "Origin": "https://untrusted.example",
+                },
+                method="POST",
+            )
+            with self.assertRaises(urllib.error.HTTPError) as caught:
+                urllib.request.urlopen(hostile_settings, timeout=3)
+            self.assertEqual(caught.exception.code, 403)
 
             file_track = next(track for track in media["tracks"] if track["source"] != "synth")
             range_request = urllib.request.Request(

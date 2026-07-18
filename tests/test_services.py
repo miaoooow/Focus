@@ -1,11 +1,17 @@
 import unittest
 import json
 import os
+import shutil
+from pathlib import Path
 from unittest.mock import patch
 
+from focus_agent.cloud_ai import CloudAISettingsStore
 from focus_agent.contracts import sanitize_roast_response, sanitize_summary_response
 from focus_agent.ollama_client import OllamaClient
 from focus_agent.services import CopyProvider, SessionParserService
+
+
+RUNTIME_ROOT = Path(__file__).resolve().parents[1] / ".runtime" / "test_services_cloud"
 
 
 class OfflineClient:
@@ -45,6 +51,20 @@ class CountingClient:
         raise AssertionError("fast planner must not wait for Ollama")
 
 
+class CloudPlanningClient:
+    def chat(self, **_kwargs):
+        return json.dumps(
+            {
+                "duration_minutes": 40,
+                "mode": "whitelist",
+                "scene_ids": ["coding"],
+                "explicit_targets": [],
+                "reason": "目标是完成编程任务并运行测试",
+            },
+            ensure_ascii=False,
+        )
+
+
 class ServiceTests(unittest.TestCase):
     def test_ollama_endpoint_can_be_overridden_for_offline_validation(self):
         with patch.dict(os.environ, {"FOCUS_BUDDY_OLLAMA_URL": "http://127.0.0.1:65534"}):
@@ -74,6 +94,23 @@ class ServiceTests(unittest.TestCase):
         plan = SessionParserService(client).plan_goal("完成周报", use_ai=False)
         self.assertEqual(client.calls, 0)
         self.assertEqual(plan.source, "本地场景库 · 即时规划")
+
+    def test_openrouter_provider_plans_without_touching_ollama(self):
+        shutil.rmtree(RUNTIME_ROOT, ignore_errors=True)
+        RUNTIME_ROOT.mkdir(parents=True)
+        try:
+            settings = CloudAISettingsStore(RUNTIME_ROOT / "cloud_ai.json")
+            settings.update({"text_provider": "openrouter"})
+            plan = SessionParserService(
+                CountingClient(),
+                cloud_settings=settings,
+                cloud_client=CloudPlanningClient(),
+            ).plan_goal("40分钟完成Python接口并运行测试", use_ai=True)
+        finally:
+            shutil.rmtree(RUNTIME_ROOT, ignore_errors=True)
+        self.assertTrue(plan.ai_used)
+        self.assertEqual(plan.config.duration_minutes, 40)
+        self.assertTrue(plan.source.startswith("云端AI · openrouter/free"))
 
     def test_copy_provider_is_instant_without_model(self):
         provider = CopyProvider(OfflineClient(), model_probability=0)

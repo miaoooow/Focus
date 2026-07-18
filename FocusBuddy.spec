@@ -9,7 +9,7 @@ datas = [
     (str(project_root / "web"), "web"),
     (str(project_root / "data"), "data"),
     (str(project_root / "pictures"), "pictures"),
-    (str(project_root / "assets" / "cat-story-skins"), "assets/cat-story-skins"),
+    (str(project_root / "assets"), "assets"),
 ]
 
 # Local tracks are optional because public redistribution requires the owner to
@@ -52,6 +52,7 @@ exe = EXE(
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
+    icon=str(project_root / "assets" / "branding" / "focus-buddy.ico"),
     codesign_identity=None,
     entitlements_file=None,
 )
