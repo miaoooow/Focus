@@ -67,9 +67,9 @@
           <label class="ai-plan-switch" for="ai-plan-toggle">
             <input id="ai-plan-toggle" type="checkbox">
             <span><i></i></span>
-            <b>免费 AI 增强（可选）</b>
+            <b>AI 增强（需自行配置）</b>
           </label>
-          <button id="ai-settings-button" class="ai-settings-button" type="button">登录 Focus</button>
+          <button id="ai-settings-button" class="ai-settings-button" type="button">AI 与本机资料</button>
           <button id="plan-button" class="primary-button plan-button">
             <span class="button-orb">✦</span><span>解析任务场景</span><b>↗</b>
           </button>
@@ -325,7 +325,7 @@
                 <input id="custom-pet-name" maxlength="12" autocomplete="off" placeholder="例如：豆包">
                 <select id="custom-pet-renderer" aria-label="宠物照片处理方式">
                   <option value="local">本机卡通化 · 隐私优先</option>
-                  <option value="focus_cloud">Focus 免费 AI · 登录后可用</option>
+                  <option value="focus_cloud">Focus Cloud · 公共服务尚未上线</option>
                   <option value="gemini">Gemini · 自带密钥的高级选项</option>
                 </select>
                 <label id="pet-cloud-consent-row" class="pet-cloud-consent" hidden>
@@ -416,18 +416,18 @@
   <dialog id="ai-settings-dialog" class="ai-settings-dialog">
     <form id="ai-settings-form" method="dialog">
       <div class="ai-dialog-head">
-        <div><p class="eyebrow">FOCUS ACCOUNT & FREE AI</p><h2>注册后保持登录，云端上线即可使用免费模型</h2></div>
+        <div><p class="eyebrow">LOCAL PROFILE & OPTIONAL AI</p><h2>本地功能开箱即用，在线 AI 需另行配置</h2></div>
         <button id="ai-settings-close" type="button" aria-label="关闭">×</button>
       </div>
-      <p class="ai-dialog-intro">普通用户不需要 API Key，也不需要下载模型。未配置 Focus Cloud 时会创建持久化本机账户；云端上线后可使用项目服务端的免费额度。</p>
+      <p class="ai-dialog-intro">当前公开版默认使用本地场景库，不需要 API Key。本机资料只用于这台设备，不是云账户，也不包含在线模型额度；如需在线 AI，请自带服务商 Key。</p>
       <div class="ai-provider-card account-card">
-        <label for="focus-account-name">Focus 账户</label>
+        <label for="focus-account-name">本机资料</label>
         <input id="focus-account-name" autocomplete="username" maxlength="24" placeholder="3—24位用户名">
         <label for="focus-account-password">密码</label>
         <input id="focus-account-password" type="password" autocomplete="current-password" maxlength="72" placeholder="至少8位">
-        <small id="focus-account-status">可直接注册本机账户并保持登录，不要求服务商密钥。</small>
+        <small id="focus-account-status">资料和登录状态仅保存在这台电脑，不会开通云端能力。</small>
         <div class="account-actions">
-          <button id="focus-account-register" type="button">注册</button>
+          <button id="focus-account-register" type="button">创建本机资料</button>
           <button id="focus-account-login" type="button">登录</button>
           <button id="focus-account-logout" type="button" hidden>退出</button>
         </div>
@@ -436,7 +436,7 @@
         <label for="text-provider">任务场景解析</label>
         <select id="text-provider">
           <option value="local">本地场景库 · 最快且完全离线</option>
-          <option value="focus_cloud">Focus Cloud 免费模型 · 登录即用</option>
+          <option value="focus_cloud">Focus Cloud · 公共服务尚未上线</option>
           <option value="ollama">Ollama 本机模型 · 完全本地</option>
           <option value="openrouter">OpenRouter · 自带密钥的高级选项</option>
         </select>
@@ -451,7 +451,7 @@
         <label for="pet-renderer-setting">宠物动画形象</label>
         <select id="pet-renderer-setting">
           <option value="local">本机卡通化 · 不上传</option>
-          <option value="focus_cloud">Focus 免费 AI · 登录后生成</option>
+          <option value="focus_cloud">Focus Cloud · 公共服务尚未上线</option>
           <option value="gemini">Gemini · 自带密钥的高级选项</option>
         </select>
         <details class="advanced-provider">

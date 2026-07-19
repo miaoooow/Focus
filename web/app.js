@@ -810,13 +810,19 @@ function renderCloudAISettings(settings) {
   $("#pet-renderer-setting").value = settings.pet_renderer || "local";
   $("#custom-pet-renderer").value = settings.pet_renderer || "local";
   const account = settings.focus_account || {};
+  const cloudAvailable = Boolean(settings.focus_cloud_available);
+  for (const select of [$("#text-provider"), $("#pet-renderer-setting"), $("#custom-pet-renderer")]) {
+    const option = select.querySelector('option[value="focus_cloud"]');
+    if (option) option.disabled = !cloudAvailable;
+    if (!cloudAvailable && select.value === "focus_cloud") select.value = "local";
+  }
   $("#focus-account-status").textContent = account.signed_in
     ? account.mode === "cloud"
       ? `已登录 ${account.username} · Focus免费AI已连接，无需API Key`
       : `已登录 ${account.username} · 本机账户会在这台电脑上保持登录`
     : settings.focus_cloud_available
       ? "尚未登录。注册和登录均不会要求服务商密钥。"
-      : "可直接注册本机账户并保存登录；Focus Cloud上线后可升级为云端账户。";
+      : "可创建仅保存在这台电脑的本机资料；这不会开通云端能力或在线模型额度。";
   $("#focus-account-name").value = account.signed_in ? account.username : "";
   $("#focus-account-name").disabled = Boolean(account.signed_in);
   $("#focus-account-password").hidden = Boolean(account.signed_in);
@@ -831,7 +837,7 @@ function renderCloudAISettings(settings) {
     : "云端图片生成可能产生服务商费用，上传前会再次征得同意。";
   $("#ai-settings-button").textContent = account.signed_in
     ? `${account.username} · ${account.mode === "cloud" ? "免费AI" : "本机账户"}`
-    : "登录 Focus";
+    : "AI 与本机资料";
   updatePetRendererConsent();
 }
 
@@ -894,7 +900,7 @@ $("#ai-settings-form").addEventListener("submit", async (event) => {
     localStorage.setItem("focus-ai-planning", String(aiPlanToggle.checked));
     currentPlan = null;
     $("#ai-settings-dialog").close();
-    showToast(settings.text_provider === "focus_cloud" ? "Focus免费任务解析已连接" : "AI设置已保存");
+    showToast(settings.text_provider === "focus_cloud" ? "Focus Cloud任务解析已连接" : "AI设置已保存");
   } catch (error) {
     showToast(error.message, true);
   } finally {

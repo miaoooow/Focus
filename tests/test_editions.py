@@ -149,7 +149,8 @@ class PublicEditionTests(unittest.TestCase):
 
     def test_windows_ui_defaults_to_no_model_required(self):
         page = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
-        self.assertIn("AI 增强（可选）", page)
+        self.assertIn("AI 增强（需自行配置）", page)
+        self.assertIn("本机资料只用于这台设备，不是云账户", page)
         self.assertIn('id="ai-settings-dialog"', page)
         self.assertIn("Windows DPAPI", page)
         self.assertIn('<input id="ai-plan-toggle" type="checkbox">', page)

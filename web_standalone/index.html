@@ -24,7 +24,7 @@
       </a>
       <div class="top-actions">
         <span id="privacy-pill" class="privacy-pill">正在检查 Focus 扩展</span>
-        <button id="account-button" class="account-button" type="button">登录 / 注册</button>
+        <button id="account-button" class="account-button" type="button">本机资料</button>
         <a id="download-link" href="https://github.com/miaoooow/Focus/releases/latest/download/Focus-Browser-Extension.zip">安装 Focus 扩展</a>
       </div>
     </header>
@@ -36,10 +36,10 @@
           <h1>把注意力留给<br /><em>真正想完成的事。</em></h1>
           <p id="hero-intro" class="intro">
             安装一次 Focus 扩展后，Luna 会把目标变成本轮网站白名单，
-            即使切换标签页也能继续监督。本机账户可直接注册并保持登录，不需要 API Key。
+            即使切换标签页也能继续监督。任务建议来自本地场景库，不需要 API Key。
           </p>
           <div class="hero-meta">
-            <span>一次安装扩展</span><span>本地保存</span><span>免费 AI 可选</span>
+            <span>一次安装扩展</span><span>本地保存</span><span>无需在线 AI</span>
           </div>
         </div>
         <div class="cat-vignette" aria-label="Luna 小猫">
@@ -175,7 +175,7 @@
               <span>生成方式</span>
               <select id="pet-renderer-web">
                 <option value="local">本机轻量动作</option>
-                <option value="focus_cloud">Focus AI 卡通化</option>
+                <option value="focus_cloud">Focus Cloud 卡通化 · 尚未上线</option>
               </select>
             </label>
             <label>
@@ -205,17 +205,17 @@
     <dialog id="account-dialog" class="account-dialog">
       <form id="account-form" method="dialog">
         <div class="account-head">
-          <div><p class="eyebrow">FOCUS ACCOUNT</p><h2>注册一次，保持登录</h2></div>
+          <div><p class="eyebrow">LOCAL PROFILE</p><h2>创建这台设备上的本机资料</h2></div>
           <button id="account-close" type="button" aria-label="关闭">×</button>
         </div>
-        <p>Focus Cloud 未配置时，账户加密派生信息与登录状态保存在当前浏览器；配置云端后会切换为托管账户和免费模型。</p>
+        <p>当前公开版不会创建云账户。资料与登录状态只保存在当前浏览器，不包含跨设备同步、密码找回或在线模型额度。</p>
         <label for="account-username">用户名</label>
         <input id="account-username" maxlength="24" autocomplete="username" placeholder="3—24位中文、字母或数字" />
         <label for="account-password">密码</label>
         <input id="account-password" type="password" maxlength="72" autocomplete="current-password" placeholder="至少8位" />
         <small id="account-status">尚未登录。</small>
         <div class="account-dialog-actions">
-          <button id="account-register" type="button">注册</button>
+          <button id="account-register" type="button">创建本机资料</button>
           <button id="account-login" type="button">登录</button>
           <button id="account-logout" type="button" hidden>退出账户</button>
         </div>

@@ -35,6 +35,11 @@ const defaults = {
 };
 
 let state = loadState();
+const cloudPetOption = $("#pet-renderer-web").querySelector('option[value="focus_cloud"]');
+if (cloudPetOption) cloudPetOption.disabled = !CLOUD_URL;
+if (!CLOUD_URL && $("#pet-renderer-web").value === "focus_cloud") {
+  $("#pet-renderer-web").value = "local";
+}
 let timerHandle = null;
 let hiddenAt = null;
 const ambientAudio = new Audio();
@@ -847,7 +852,7 @@ function renderAccount() {
       : `已登录 ${account.username} · 登录状态与专注记录保存在当前浏览器`
     : CLOUD_URL
       ? "尚未登录。注册或登录后无需再填写任何API Key。"
-      : "可直接注册本机账户；关闭网页后仍会保持登录，不需要API Key。";
+      : "可创建仅保存在当前浏览器的本机资料；这不会开通云端能力或在线模型额度。";
   $("#account-username").value = account.signedIn ? account.username : "";
   $("#account-username").disabled = account.signedIn;
   $("#account-password").hidden = account.signedIn;
@@ -855,8 +860,8 @@ function renderAccount() {
   $("#account-login").hidden = account.signedIn;
   $("#account-logout").hidden = !account.signedIn;
   $("#account-button").textContent = account.signedIn
-    ? `${account.username} · ${account.mode === "cloud" ? "免费AI" : "本机账户"}`
-    : "登录 / 注册";
+    ? `${account.username} · ${account.mode === "cloud" ? "Focus Cloud" : "本机资料"}`
+    : "本机资料";
   renderPetMode();
 }
 

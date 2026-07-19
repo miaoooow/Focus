@@ -159,21 +159,29 @@ async function useQuota(env, userId, field) {
   )
     .bind(userId, day)
     .run();
-  const row = await env.DB.prepare(
-    "SELECT chat_count,pet_count FROM daily_usage WHERE user_id=? AND usage_day=?"
-  )
-    .bind(userId, day)
-    .first();
   const limit = Number(
     field === "chat_count" ? env.DAILY_CHAT_LIMIT || 30 : env.DAILY_PET_LIMIT || 2
   );
-  if (Number(row?.[field] || 0) >= limit) {
+  const result = await env.DB.prepare(
+    `UPDATE daily_usage
+       SET ${field}=${field}+1
+     WHERE user_id=? AND usage_day=? AND ${field}<?`
+  )
+    .bind(userId, day, limit)
+    .run();
+  if (Number(result.meta?.changes || 0) !== 1) {
     throw new Response("今天的免费AI额度已用完，明天会自动恢复", { status: 429 });
   }
+  return { day, field };
+}
+
+async function refundQuota(env, userId, reservation) {
   await env.DB.prepare(
-    `UPDATE daily_usage SET ${field}=${field}+1 WHERE user_id=? AND usage_day=?`
+    `UPDATE daily_usage
+       SET ${reservation.field}=MAX(0,${reservation.field}-1)
+     WHERE user_id=? AND usage_day=?`
   )
-    .bind(userId, day)
+    .bind(userId, reservation.day)
     .run();
 }
 
@@ -239,17 +247,23 @@ async function chat(request, env) {
   const user = await requireUser(request, env);
   const payload = await bodyJson(request, 30000);
   const messages = cleanMessages(payload);
-  await useQuota(env, user.id, "chat_count");
-  const result = await env.AI.run(
-    env.TEXT_MODEL || "@cf/meta/llama-3.1-8b-instruct-fp8-fast",
-    {
-      messages,
-      max_tokens: 900,
-      temperature: 0.1,
-    }
-  );
-  const text = String(result?.response || result?.result?.response || "").trim();
-  if (!text) throw new Error("免费模型没有返回可用内容");
+  const quota = await useQuota(env, user.id, "chat_count");
+  let text;
+  try {
+    const result = await env.AI.run(
+      env.TEXT_MODEL || "@cf/meta/llama-3.1-8b-instruct-fp8-fast",
+      {
+        messages,
+        max_tokens: 900,
+        temperature: 0.1,
+      }
+    );
+    text = String(result?.response || result?.result?.response || "").trim();
+    if (!text) throw new Error("免费模型没有返回可用内容");
+  } catch (error) {
+    await refundQuota(env, user.id, quota);
+    throw error;
+  }
   return json({
     ok: true,
     data: {
@@ -264,10 +278,12 @@ async function plan(request, env) {
   const payload = await bodyJson(request, 12000);
   const goal = String(payload.goal || "").trim().slice(0, 300);
   if (!goal) throw new Error("请先填写目标");
-  await useQuota(env, user.id, "chat_count");
-  const result = await env.AI.run(
-    env.TEXT_MODEL || "@cf/meta/llama-3.1-8b-instruct-fp8-fast",
-    {
+  const quota = await useQuota(env, user.id, "chat_count");
+  let result;
+  try {
+    result = await env.AI.run(
+      env.TEXT_MODEL || "@cf/meta/llama-3.1-8b-instruct-fp8-fast",
+      {
       messages: [
         {
           role: "system",
@@ -278,13 +294,18 @@ async function plan(request, env) {
       ],
       max_tokens: 420,
       temperature: 0.1,
-    }
-  );
+      }
+    );
+  } catch (error) {
+    await refundQuota(env, user.id, quota);
+    throw error;
+  }
   const raw = String(result?.response || "").trim().replace(/^```json\s*|\s*```$/g, "");
   let parsed;
   try {
     parsed = JSON.parse(raw);
   } catch {
+    await refundQuota(env, user.id, quota);
     throw new Error("模型规划格式不稳定，请重试；本地推荐仍可继续使用");
   }
   return json({
@@ -315,12 +336,14 @@ async function pet(request, env) {
     /^data:image\/(?:png|jpeg|jpg|webp);base64,([A-Za-z0-9+/=\r\n]+)$/i
   );
   if (!match) throw new Error("请选择PNG、JPG或WebP宠物照片");
-  await useQuota(env, user.id, "pet_count");
+  const quota = await useQuota(env, user.id, "pet_count");
   const prompt =
     "Turn the same pet in the input photo into a premium hand-drawn 2D mascot for a focus app. Preserve species, coat color, markings, ear shape and eye color. Full body, centered, cream outline, flat soft green background, no text, no watermark, no extra animal.";
-  const result = await env.AI.run(
-    env.PET_MODEL || "@cf/runwayml/stable-diffusion-v1-5-img2img",
-    {
+  let result;
+  try {
+    result = await env.AI.run(
+      env.PET_MODEL || "@cf/runwayml/stable-diffusion-v1-5-img2img",
+      {
       prompt,
       negative_prompt:
         "text, watermark, extra animal, cropped body, duplicate, photorealistic background",
@@ -330,10 +353,17 @@ async function pet(request, env) {
       num_steps: 16,
       width: 768,
       height: 768,
-    }
-  );
+      }
+    );
+  } catch (error) {
+    await refundQuota(env, user.id, quota);
+    throw error;
+  }
   const buffer = await new Response(result).arrayBuffer();
-  if (!buffer.byteLength) throw new Error("图片模型没有返回结果");
+  if (!buffer.byteLength) {
+    await refundQuota(env, user.id, quota);
+    throw new Error("图片模型没有返回结果");
+  }
   return json({
     ok: true,
     data: { image: `data:image/png;base64,${bytesToBase64(new Uint8Array(buffer))}` },
